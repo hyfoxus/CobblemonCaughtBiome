@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "cobblemoncaughtbiome",
+  "version": "${version}",
+  "name": "CobblemonCaughtBiome",
+  "description": "Records the biome where a Pokemon was caught and shows it on the Cobblemon summary screen.",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/cobblemoncaughtbiome/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "org.hyfoxus.cobblemoncaughtbiome.client.CobblemoncaughtbiomeDataGenerator"
+    ],
+    "client": [
+      "org.hyfoxus.cobblemoncaughtbiome.client.CobblemoncaughtbiomeClient"
+    ],
+    "main": [
+      "org.hyfoxus.cobblemoncaughtbiome.Cobblemoncaughtbiome"
+    ]
+  },
+  "mixins": [
+    "cobblemoncaughtbiome.mixins.json",
+    {
+      "config": "cobblemoncaughtbiome.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "cobblemon": ">=1.7.3",
+    "minecraft": "${minecraft_version}"
+  }
+}
