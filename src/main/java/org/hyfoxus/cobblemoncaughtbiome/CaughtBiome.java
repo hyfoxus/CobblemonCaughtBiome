@@ -25,7 +25,7 @@ public final class CaughtBiome {
                 .<Component>map(id -> Component.translatableWithFallback(
                         "cobblemoncaughtbiome.caught_in",
                         "Caught in: %s",
-                        Component.translatableWithFallback(id.toLanguageKey("biome"), id.toString())))
+                        BiomeNames.display(id.toString())))
                 .orElseGet(() -> Component.translatableWithFallback("cobblemoncaughtbiome.unknown", "Unknown"));
     }
 }

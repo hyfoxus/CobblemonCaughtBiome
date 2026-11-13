@@ -1,0 +1,104 @@
+package org.hyfoxus.cobblemoncaughtbiome.soullink;
+
+import com.cobblemon.mod.common.Cobblemon;
+import com.cobblemon.mod.common.pokemon.Pokemon;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import org.hyfoxus.cobblemoncaughtbiome.network.JournalPayload;
+import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
+import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Run;
+
+final class SoulLinkJournal {
+    private static final int ROWS_PER_CHUNK = 32;
+
+    private SoulLinkJournal() { }
+
+    static void initialize() {
+        PayloadTypeRegistry.playS2C().register(JournalPayload.TYPE, JournalPayload.CODEC);
+    }
+
+    static int open(ServerPlayer player, String filter, int page) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        Run run = data.findRun(player.getUUID());
+        if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
+        if (!ServerPlayNetworking.canSend(player, JournalPayload.TYPE)) {
+            SoulLinkManager.message(player, "Install the matching client mod to open the biome journal.");
+            return 0;
+        }
+        backfillPortraits(player, data, run);
+        List<ResourceLocation> biomes = new ArrayList<>(player.server.registryAccess().registryOrThrow(Registries.BIOME).keySet());
+        for (Capture capture : run.captures) {
+            ResourceLocation biome = ResourceLocation.tryParse(capture.biome());
+            if (biome != null && !biomes.contains(biome)) biomes.add(biome);
+        }
+        biomes.sort(Comparator.comparing(ResourceLocation::toString));
+        UUID snapshot = UUID.randomUUID();
+        int chunks = Math.max(1, (biomes.size() + ROWS_PER_CHUNK - 1) / ROWS_PER_CHUNK);
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("snapshot", snapshot);
+            tag.putInt("chunk", chunk);
+            tag.putInt("chunks", chunks);
+            tag.putString("firstName", run.firstName);
+            tag.putString("secondName", run.secondName);
+            tag.putBoolean("paused", run.paused);
+            tag.putString("filter", filter);
+            tag.putInt("page", page);
+            ListTag rows = new ListTag();
+            for (int i = chunk * ROWS_PER_CHUNK; i < Math.min(biomes.size(), (chunk + 1) * ROWS_PER_CHUNK); i++) {
+                String biome = biomes.get(i).toString();
+                CompoundTag row = new CompoundTag();
+                row.putString("biome", biome);
+                row.putString("theme", theme(player, biomes.get(i)));
+                Capture first = run.capture(run.first, biome);
+                Capture second = run.capture(run.second, biome);
+                if (first != null) row.put("first", first.toTag());
+                if (second != null) row.put("second", second.toTag());
+                rows.add(row);
+            }
+            tag.put("rows", rows);
+            ServerPlayNetworking.send(player, new JournalPayload(tag));
+        }
+        return 1;
+    }
+
+    private static void backfillPortraits(ServerPlayer viewer, SoulLinkData data, Run run) {
+        for (int i = 0; i < run.captures.size(); i++) {
+            Capture capture = run.captures.get(i);
+            if (!capture.species().isEmpty()) continue;
+            var storage = Cobblemon.INSTANCE.getStorage();
+            Pokemon pokemon = storage.getParty(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
+            if (pokemon == null) pokemon = storage.getPC(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
+            if (pokemon != null) {
+                run.captures.set(i, capture.withAppearance(pokemon));
+                data.setDirty();
+            }
+        }
+    }
+
+    private static String theme(ServerPlayer viewer, ResourceLocation biome) {
+        var holder = viewer.server.registryAccess().registryOrThrow(Registries.BIOME)
+                .getHolder(ResourceKey.create(Registries.BIOME, biome));
+        if (holder.isEmpty()) return "grassland";
+        var value = holder.get();
+        if (value.is(BiomeTags.IS_NETHER)) return "nether";
+        if (value.is(BiomeTags.IS_END)) return "end";
+        if (value.is(BiomeTags.IS_OCEAN) || value.is(BiomeTags.IS_RIVER)) return "ocean";
+        if (value.value().getBaseTemperature() < 0.2F) return "snow";
+        if (value.is(BiomeTags.IS_FOREST) || value.is(BiomeTags.IS_TAIGA) || value.is(BiomeTags.IS_JUNGLE)) return "forest";
+        if ((!value.value().hasPrecipitation() && value.value().getBaseTemperature() > 1F)
+                || value.is(BiomeTags.IS_BEACH) || value.is(BiomeTags.IS_BADLANDS)) return "desert";
+        return "grassland";
+    }
+}

@@ -43,11 +43,11 @@ class CaughtBiomeTest {
     }
 
     @Test
-    void displayUnknownNamespaceFallsBackToId() {
+    void displayUnknownNamespaceFallsBackToReadableName() {
         CompoundTag tag = new CompoundTag();
         CaughtBiome.store(tag, ResourceLocation.parse("mymod:weird_place"));
         String shown = CaughtBiome.display(tag).getString();
-        assertEquals("Caught in: mymod:weird_place", shown);
+        assertEquals("Caught in: Weird Place", shown);
         assertFalse(shown.contains("biome."));
     }
 }

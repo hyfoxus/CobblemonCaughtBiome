@@ -1,5 +1,7 @@
 plugins {
     id 'fabric-loom' version '1.11.8'
+    // Enables Loom's Kotlin metadata remapper for Cobblemon's reflective APIs.
+    id 'org.jetbrains.kotlin.jvm' version '2.2.20'
     id 'maven-publish'
 }
 
@@ -12,6 +14,18 @@ base {
 
 loom {
     splitEnvironmentSourceSets()
+
+    runs {
+        client {
+            // Reuse the first client's existing Soul Link identity across launches.
+            programArgs '--username', 'Player483', '--uuid', '4941828d-27d9-3ea5-a0e2-8e881702c195'
+        }
+        secondClient {
+            client()
+            runDir 'run-second-client'
+            programArgs '--username', 'SoulLinkTester'
+        }
+    }
 
     mods {
         "cobblemoncaughtbiome" {
@@ -39,6 +53,12 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
+    maven {
+        url = "https://artefacts.cobblemon.com/releases/"
+        content {
+            includeGroup "com.cobblemon"
+        }
+    }
 }
 
 dependencies {
@@ -48,8 +68,8 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    modImplementation "maven.modrinth:cobblemon:${project.cobblemon_version_id}"
-    modRuntimeOnly "net.fabricmc:fabric-language-kotlin:1.13.6+kotlin.2.2.20"
+    modImplementation "com.cobblemon:fabric:1.7.3+1.21.1"
+    modImplementation "net.fabricmc:fabric-language-kotlin:1.13.6+kotlin.2.2.20"
     compileOnly "org.jetbrains.kotlin:kotlin-stdlib:2.2.20"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
@@ -91,6 +111,23 @@ java {
     // if it is present.
     // If you remove this line, sources will not be generated.
     withSourcesJar()
+}
+
+kotlin {
+    jvmToolchain(21)
+}
+
+// Pin Loom's launches without conflicting with IDE-generated JavaExec tasks.
+tasks.withType(net.fabricmc.loom.task.RunGameTask).configureEach {
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    })
+}
+
+tasks.withType(Test).configureEach {
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    })
 }
 
 jar {

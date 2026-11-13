@@ -19,22 +19,23 @@ public abstract class InfoWidgetMixin {
     private static final int X_OFFSET = 8;
     private static final int Y_OFFSET = 131;
 
-    @Shadow
+    @Shadow(remap = false)
     @Final
     private Pokemon pokemon;
 
     @Inject(method = "renderWidget", at = @At("TAIL"))
     private void cobblemoncaughtbiome$drawCaughtIn(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        AbstractWidget self = (AbstractWidget) (Object) this;
+        AbstractWidget panel = (AbstractWidget) (Object) this;
+        int x = (int) ((panel.getX() + X_OFFSET) / SCALE);
+        int y = (int) ((panel.getY() + Y_OFFSET) / SCALE);
+
         graphics.pose().pushPose();
-        graphics.pose().scale(SCALE, SCALE, 1F);
-        graphics.drawString(
-                Minecraft.getInstance().font,
-                CaughtBiome.display(this.pokemon.getPersistentData()),
-                (int) ((self.getX() + X_OFFSET) / SCALE),
-                (int) ((self.getY() + Y_OFFSET) / SCALE),
-                0xFFFFFF,
-                true);
-        graphics.pose().popPose();
+        try {
+            graphics.pose().scale(SCALE, SCALE, 1F);
+            graphics.drawString(Minecraft.getInstance().font,
+                    CaughtBiome.display(pokemon.getPersistentData()), x, y, 0xFFFFFF, true);
+        } finally {
+            graphics.pose().popPose();
+        }
     }
 }
