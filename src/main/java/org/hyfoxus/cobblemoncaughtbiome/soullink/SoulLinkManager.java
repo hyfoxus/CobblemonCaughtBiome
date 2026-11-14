@@ -29,6 +29,7 @@ public final class SoulLinkManager {
     public static void initialize() {
         SoulLinkCommands.register();
         SoulLinkJournal.initialize();
+        SoulLinkMenu.initialize();
         SoulLinkCaptureRules.initialize();
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             INVITATIONS.clear();
