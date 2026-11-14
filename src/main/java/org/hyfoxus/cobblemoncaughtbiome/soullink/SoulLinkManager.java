@@ -14,10 +14,14 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.hyfoxus.cobblemoncaughtbiome.BiomeNames;
+import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkInvitePayload;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Run;
 
@@ -30,6 +34,7 @@ public final class SoulLinkManager {
         SoulLinkCommands.register();
         SoulLinkJournal.initialize();
         SoulLinkMenu.initialize();
+        PayloadTypeRegistry.playS2C().register(SoulLinkInvitePayload.TYPE, SoulLinkInvitePayload.CODEC);
         SoulLinkCaptureRules.initialize();
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             INVITATIONS.clear();
@@ -82,6 +87,13 @@ public final class SoulLinkManager {
                 .append(SoulLinkMessages.text("   "))
                 .append(SoulLinkMessages.button("Decline", "/soullink decline " + token, SoulLinkMessages.WARNING, "Decline this invitation"))
                 .append(SoulLinkMessages.text("  ·  Expires in 60 seconds"))));
+        if (ServerPlayNetworking.canSend(target, SoulLinkInvitePayload.TYPE)) {
+            CompoundTag invitePayload = new CompoundTag();
+            invitePayload.putString("inviter", inviter.getGameProfile().getName());
+            invitePayload.putString("token", token);
+            invitePayload.putInt("ticksRemaining", 1200);
+            ServerPlayNetworking.send(target, new SoulLinkInvitePayload(invitePayload));
+        }
         return true;
     }
 
