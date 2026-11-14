@@ -16,7 +16,14 @@ final class BiomeBackdrop {
             case "end" -> 0xFF8F82AB;
             default -> 0xFF79A38A;
         };
-        graphics.fillGradient(x, y, x + width, y + height, sky, 0xFF35545C);
+        // Flat stepped bands instead of a smooth gradient, so the sky reads as sharp pixel art.
+        // Sampled across the full 0..1 range (not band-centered) so neighboring bands contrast
+        // sharply instead of blending into one another.
+        int bands = 3;
+        for (int band = 0; band < bands; band++) {
+            graphics.fill(x, y + height * band / bands, x + width, y + height * (band + 1) / bands,
+                    lerpColor(sky, 0xFF35545C, band / (float) (bands - 1)));
+        }
         for (int i = 0; i < width; i += 4) {
             double wave = Math.sin(i * 0.045) * 3 + Math.cos(i * 0.08) * 2;
             int horizon = y + height - 9 + (int) wave;
@@ -55,5 +62,13 @@ final class BiomeBackdrop {
         }
         // Text remains legible over every theme.
         graphics.fill(x, y, x + width, y + height, 0x110D141C);
+    }
+
+    private static int lerpColor(int from, int to, float t) {
+        int a = (int) (((from >> 24) & 0xFF) + (((to >> 24) & 0xFF) - ((from >> 24) & 0xFF)) * t);
+        int r = (int) (((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * t);
+        int g = (int) (((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * t);
+        int b = (int) ((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * t);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }

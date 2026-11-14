@@ -64,9 +64,11 @@ final class PokemonPortrait extends AbstractWidget {
         graphics.pose().pushPose();
         try {
             if (state == null) state = new FloatingState();
-            // Match Cobblemon's party-slot portrait transform.
-            graphics.pose().translate(x + width / 2.0, y - 3.0, 100);
-            graphics.pose().scale(width / 42F * 2.5F, height / 42F * 2.5F, 1F);
+            // Cobblemon's PC slot (StorageSlot.kt) uses a fixed 25px box with translate(+1.0) and
+            // scale(2.5F); scale that reference transform up to this widget's actual size.
+            float ratio = width / 25F;
+            graphics.pose().translate(x + width / 2.0, y + 1.0 * ratio, 100);
+            graphics.pose().scale(2.5F * ratio, 2.5F * ratio, 1F);
             state.updateAge(ticks);
             PokemonGuiUtilsKt.drawProfilePokemon(pokemon, graphics.pose(),
                     new Quaternionf().rotationXYZ((float) Math.toRadians(13), (float) Math.toRadians(35), 0),

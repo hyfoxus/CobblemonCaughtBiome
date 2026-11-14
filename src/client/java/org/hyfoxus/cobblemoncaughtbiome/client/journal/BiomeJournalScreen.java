@@ -15,8 +15,15 @@ import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 import org.lwjgl.glfw.GLFW;
 
 public final class BiomeJournalScreen extends Screen {
-    private static final int CARD_HEIGHT = 108;
+    private static final int CARD_HEIGHT = 150;
+    private static final int CARD_HEIGHT_COMPACT = 100;
     private static final int GAP = 8;
+    /** Height of the backdrop/name/status banner at the top of each card. */
+    private static final int HEADER_HEIGHT = 30;
+    /** Baseline offset of the owner-name labels from the card's bottom edge (non-compact only). */
+    private static final int FOOTER_LABEL_OFFSET = 18;
+    /** Breathing room above the header and below the portrait band. */
+    private static final int PORTRAIT_PAD = 3;
     private List<Row> rows;
     private final List<Row> filtered = new ArrayList<>();
     private final List<PortraitPair> portraits = new ArrayList<>();
@@ -59,7 +66,7 @@ public final class BiomeJournalScreen extends Screen {
         compact = height < 225;
         contentTop = compact ? 88 : 108;
         contentBottom = Math.max(contentTop + 32, height - (compact ? 23 : 34));
-        cardHeight = compact ? 72 : CARD_HEIGHT;
+        cardHeight = compact ? CARD_HEIGHT_COMPACT : CARD_HEIGHT;
         columns = panelWidth >= 490 ? 2 : 1;
         cardWidth = (panelWidth - 28 - GAP * (columns - 1)) / columns;
         search = new EditBox(font, left + 18, compact ? 36 : 55,
@@ -115,13 +122,30 @@ public final class BiomeJournalScreen extends Screen {
         positionPortraits();
     }
 
+    /** Top of the portrait band, relative to the card's own top edge. */
+    private int portraitBandTop() {
+        return HEADER_HEIGHT + PORTRAIT_PAD;
+    }
+
+    /** Height of the portrait band: between the header banner and the footer name labels (or the card's bottom edge, when compact). */
+    private int portraitBandHeight() {
+        int bottom = cardHeight - (compact ? PORTRAIT_PAD : FOOTER_LABEL_OFFSET + PORTRAIT_PAD);
+        return bottom - portraitBandTop();
+    }
+
+    /** Portrait side length: fills the band's height, capped so the two portraits never touch widthwise. */
+    private int portraitSize() {
+        return Math.max(24, Math.min(portraitBandHeight(), cardWidth / 2 - 8));
+    }
+
     private void positionPortraits() {
+        int size = portraitSize();
+        int bandTop = portraitBandTop();
+        int portraitY = bandTop + (portraitBandHeight() - size) / 2;
         for (int i = 0; i < portraits.size(); i++) {
             int x = left + 14 + i % columns * (cardWidth + GAP);
             int y = contentTop + i / columns * (cardHeight + GAP) - (int) scroll;
             PortraitPair pair = portraits.get(i);
-            int size = compact ? 30 : 42;
-            int portraitY = compact ? 32 : 37;
             pair.first().setWidth(size);
             pair.second().setWidth(size);
             pair.first().setHeight(size);
@@ -158,23 +182,34 @@ public final class BiomeJournalScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, width, height, 0xD9080D14);
         graphics.fill(left, 8, left + panelWidth, height - 8, 0xF0121C27);
-        graphics.renderOutline(left, 8, panelWidth, height - 16, 0xFF34434F);
-        graphics.fill(left, 8, left + panelWidth, 10, 0xFF000000 | SoulLinkColors.TEAL);
-        graphics.drawString(font, fit("SOUL LINK  /  BIOME JOURNAL", panelWidth - 28), left + 14,
-                compact ? 12 : 18, SoulLinkColors.TEAL, false);
-        String names = header.getString("firstName") + "  ↔  " + header.getString("secondName")
-                + (header.getBoolean("paused") ? "  ·  Paused" : "  ·  Active");
-        graphics.drawString(font, fit(names, panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
         graphics.fill(left + 14, compact ? 31 : 50, left + panelWidth - 134,
                 compact ? 51 : 70, 0xFF0D1721);
         graphics.enableScissor(left + 12, contentTop, left + panelWidth - 9, contentBottom);
         for (int i = 0; i < filtered.size(); i++) {
             int y = contentTop + i / columns * (cardHeight + GAP) - (int) scroll;
             if (y + cardHeight < contentTop || y > contentBottom) continue;
-            renderCard(graphics, filtered.get(i), left + 14 + i % columns * (cardWidth + GAP), y);
+            renderCardBackground(graphics, filtered.get(i), left + 14 + i % columns * (cardWidth + GAP), y);
         }
         graphics.disableScissor();
+        // Everything from here on is drawn after super.render() below: anything drawn before the widget
+        // pipeline runs renders blurry on this screen (confirmed empirically), after it renders sharp.
+        // Only backgrounds that sit behind a widget (panel/search-box fill, card fill/backdrop) stay above.
+        super.render(graphics, mouseX, mouseY, partialTick);
+        graphics.renderOutline(left, 8, panelWidth, height - 16, 0xFF34434F);
+        graphics.fill(left, 8, left + panelWidth, 10, 0xFF000000 | SoulLinkColors.TEAL);
         drawScrollbar(graphics);
+        graphics.drawString(font, fit("SOUL LINK  /  BIOME JOURNAL", panelWidth - 28), left + 14,
+                compact ? 12 : 18, SoulLinkColors.TEAL, false);
+        String names = header.getString("firstName") + "  ↔  " + header.getString("secondName")
+                + (header.getBoolean("paused") ? "  ·  Paused" : "  ·  Active");
+        graphics.drawString(font, fit(names, panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
+        graphics.enableScissor(left + 12, contentTop, left + panelWidth - 9, contentBottom);
+        for (int i = 0; i < filtered.size(); i++) {
+            int y = contentTop + i / columns * (cardHeight + GAP) - (int) scroll;
+            if (y + cardHeight < contentTop || y > contentBottom) continue;
+            renderCardText(graphics, filtered.get(i), left + 14 + i % columns * (cardWidth + GAP), y);
+        }
+        graphics.disableScissor();
         if (filtered.isEmpty()) {
             graphics.drawCenteredString(font, fit("No biomes match your search or filter.", panelWidth - 28), width / 2,
                     contentTop + 14, SoulLinkColors.TEXT);
@@ -182,24 +217,30 @@ public final class BiomeJournalScreen extends Screen {
         String counts = "Available " + count(Filter.AVAILABLE) + "   ·   Waiting " + count(Filter.WAITING)
                 + "   ·   Linked " + count(Filter.LINKED);
         graphics.drawString(font, fit(counts, panelWidth - 28), left + 14, height - 25, SoulLinkColors.TEXT, false);
-        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
-    private void renderCard(GuiGraphics graphics, Row row, int x, int y) {
+    private void renderCardBackground(GuiGraphics graphics, Row row, int x, int y) {
         graphics.fill(x, y, x + cardWidth, y + cardHeight, 0xFF34515A);
         BiomeBackdrop.draw(graphics, row.theme(), x + 1, y + 1, cardWidth - 2, 29);
-        graphics.fill(x + 1, y + 1, x + cardWidth - 1, y + 30, 0x9914212A);
+        // Darken only behind the name/status text, in two flat steps (not a smooth gradient) so the
+        // banner's art underneath still reads as sharp pixel art; the lower part stays fully visible.
+        graphics.fill(x + 1, y + 1, x + cardWidth - 1, y + 13, 0x9914212A);
+        graphics.fill(x + 1, y + 13, x + cardWidth - 1, y + 22, 0x4014212A);
+    }
+
+    private void renderCardText(GuiGraphics graphics, Row row, int x, int y) {
         graphics.renderOutline(x, y, cardWidth, cardHeight, 0xFF82A3AA);
         graphics.drawString(font, fit(row.name().getString(), cardWidth - 16), x + 8, y + 7, 0xFFF7FBF8, true);
         graphics.drawString(font, row.status().label, x + 8, y + 19, row.status().color, true);
         graphics.drawCenteredString(font, row.status() == Filter.LINKED ? "↔" : "·", x + cardWidth / 2,
-                y + (compact ? 45 : 54),
+                y + portraitBandTop() + portraitBandHeight() / 2 - 4,
                 row.status().color);
         if (compact) return;
+        int labelY = y + cardHeight - FOOTER_LABEL_OFFSET;
         graphics.drawCenteredString(font, fit(header.getString("firstName"), cardWidth / 2 - 12),
-                x + cardWidth / 4, y + 85, SoulLinkColors.TEXT);
+                x + cardWidth / 4, labelY, SoulLinkColors.TEXT);
         graphics.drawCenteredString(font, fit(header.getString("secondName"), cardWidth / 2 - 12),
-                x + cardWidth * 3 / 4, y + 85, SoulLinkColors.TEXT);
+                x + cardWidth * 3 / 4, labelY, SoulLinkColors.TEXT);
     }
 
     private long count(Filter state) { return rows.stream().filter(row -> row.status() == state).count(); }
