@@ -246,5 +246,14 @@ public final class SoulLinkManager {
         return SoulLinkMessages.line(SoulLinkMessages.text(saved.replaceFirst("^\\[Soul Link] ", "")));
     }
 
-    private record Invitation(UUID inviter, long expiresAt, String token) { }
+    static String formatLogEntry(String text) {
+        return "[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + "] " + text;
+    }
+
+    static Invitation pendingInvitation(UUID player, MinecraftServer server) {
+        Invitation invite = INVITATIONS.get(player);
+        return invite != null && invite.expiresAt() > server.getTickCount() ? invite : null;
+    }
+
+    record Invitation(UUID inviter, long expiresAt, String token) { }
 }

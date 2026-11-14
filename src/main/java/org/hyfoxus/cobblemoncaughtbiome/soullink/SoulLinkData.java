@@ -43,6 +43,7 @@ public final class SoulLinkData extends SavedData {
                 run.captures.add(new Capture(capture.getUUID("player"), capture.getUUID("pokemon"),
                         capture.getString("name"), capture.getString("biome"), capture.getString("species"), aspects));
             }
+            for (Tag logEntry : tag.getList("log", Tag.TAG_STRING)) run.log.add(logEntry.getAsString());
             data.runs.add(run);
         }
         for (Tag entry : root.getList("notifications", Tag.TAG_COMPOUND)) {
@@ -68,6 +69,9 @@ public final class SoulLinkData extends SavedData {
                 captures.add(capture.toTag());
             }
             tag.put("captures", captures);
+            ListTag log = new ListTag();
+            run.log.forEach(entry -> log.add(StringTag.valueOf(entry)));
+            tag.put("log", log);
             savedRuns.add(tag);
         }
         root.put("runs", savedRuns);
@@ -110,6 +114,7 @@ public final class SoulLinkData extends SavedData {
         String secondName;
         boolean paused;
         final List<Capture> captures = new ArrayList<>();
+        final List<String> log = new ArrayList<>();
 
         Run(UUID first, String firstName, UUID second, String secondName) {
             this.first = first;
