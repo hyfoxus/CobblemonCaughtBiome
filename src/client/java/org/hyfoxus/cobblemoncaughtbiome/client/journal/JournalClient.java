@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import org.hyfoxus.cobblemoncaughtbiome.network.JournalPayload;
+import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkInvitePayload;
 import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkLogPayload;
 import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkOnlinePayload;
 
@@ -74,6 +75,16 @@ public final class JournalClient {
                         logSnapshot = null;
                         logNextChunk = 0;
                         logEntries.clear();
+                    }
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(SoulLinkInvitePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    if (context.client().getConnection() == null) return;
+                    var screen = context.client().screen;
+                    if (screen == null || screen instanceof InvitePopupScreen) {
+                        CompoundTag data = payload.data();
+                        context.client().setScreen(new InvitePopupScreen(data.getString("inviter"),
+                                data.getString("token"), data.getInt("ticksRemaining")));
                     }
                 }));
     }
