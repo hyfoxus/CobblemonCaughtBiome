@@ -79,6 +79,11 @@ public final class BiomeJournalScreen extends Screen {
         if (minecraft != null && minecraft.getConnection() != null) minecraft.getConnection().sendCommand(command);
     }
 
+    private void actAndRefresh(String command) {
+        sendCommand(command);
+        sendCommand("soullink menu");
+    }
+
     @Override
     protected void init() {
         left = Math.max(4, (width - Math.min(700, width - 16)) / 2);
@@ -91,6 +96,11 @@ public final class BiomeJournalScreen extends Screen {
                     tab == ContentTab.BIOMES, button -> { tab = ContentTab.BIOMES; rebuildWidgets(); }));
             addRenderableWidget(new JournalButton(left + 68, compact ? 31 : 50, 50, Component.literal("Logs"),
                     tab == ContentTab.LOGS, button -> { tab = ContentTab.LOGS; sendCommand("soullink logs"); rebuildWidgets(); }));
+            addRenderableWidget(new JournalButton(left + panelWidth - 262, compact ? 31 : 50, 74,
+                    Component.literal(header.getBoolean("paused") ? "Resume" : "Pause"), false,
+                    button -> actAndRefresh(header.getBoolean("paused") ? "soullink resume" : "soullink stop")));
+            addRenderableWidget(new JournalButton(left + panelWidth - 180, compact ? 31 : 50, 44, Component.literal("End"), false,
+                    button -> actAndRefresh("soullink end")));
             addRenderableWidget(new JournalButton(left + panelWidth - 128, compact ? 31 : 50, 66, Component.literal("Refresh"), false,
                     button -> refresh()));
             addRenderableWidget(new JournalButton(left + panelWidth - 58, compact ? 31 : 50, 44, Component.literal("Close"), false,
@@ -102,7 +112,7 @@ public final class BiomeJournalScreen extends Screen {
                 biomeTab.setFont(font);
                 biomeTab.setLayout(left, panelWidth, contentTop, contentBottom, columns, cardWidth, cardHeight, compact);
                 search = new EditBox(font, left + 130, compact ? 36 : 55,
-                        Math.max(30, panelWidth - 268), 18, Component.literal("Search biomes"));
+                        Math.max(30, panelWidth - 392), 18, Component.literal("Search biomes"));
                 search.setBordered(false);
                 search.setTextColor(SoulLinkColors.TEXT);
                 search.setHint(Component.literal("Search biomes…"));
