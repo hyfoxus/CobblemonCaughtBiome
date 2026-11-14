@@ -13,9 +13,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.hyfoxus.cobblemoncaughtbiome.network.JournalPayload;
+import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkLogPayload;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Run;
 
@@ -26,6 +28,32 @@ final class SoulLinkJournal {
 
     static void initialize() {
         PayloadTypeRegistry.playS2C().register(JournalPayload.TYPE, JournalPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SoulLinkLogPayload.TYPE, SoulLinkLogPayload.CODEC);
+    }
+
+    static int openLogs(ServerPlayer player) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        Run run = data.findRun(player.getUUID());
+        if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
+        if (!ServerPlayNetworking.canSend(player, SoulLinkLogPayload.TYPE)) {
+            SoulLinkManager.message(player, "Install the matching client mod to open the Soul Link log.");
+            return 0;
+        }
+        UUID snapshot = UUID.randomUUID();
+        int chunks = Math.max(1, (run.log.size() + ROWS_PER_CHUNK - 1) / ROWS_PER_CHUNK);
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("snapshot", snapshot);
+            tag.putInt("chunk", chunk);
+            tag.putInt("chunks", chunks);
+            ListTag entries = new ListTag();
+            for (int i = chunk * ROWS_PER_CHUNK; i < Math.min(run.log.size(), (chunk + 1) * ROWS_PER_CHUNK); i++) {
+                entries.add(StringTag.valueOf(run.log.get(i)));
+            }
+            tag.put("entries", entries);
+            ServerPlayNetworking.send(player, new SoulLinkLogPayload(tag));
+        }
+        return 1;
     }
 
     static int open(ServerPlayer player, String filter, int page) {

@@ -113,8 +113,11 @@ public final class SoulLinkManager {
         SoulLinkData data = SoulLinkData.get(player.server);
         if (data.findRun(player.getUUID()) != null || data.findRun(inviter.getUUID()) != null)
             return error(player, "One of you is already in a Soul Link run.");
-        data.runs.add(new Run(inviter.getUUID(), inviter.getGameProfile().getName(),
-                player.getUUID(), player.getGameProfile().getName()));
+        Run run = new Run(inviter.getUUID(), inviter.getGameProfile().getName(),
+                player.getUUID(), player.getGameProfile().getName());
+        data.runs.add(run);
+        run.log.add(formatLogEntry(inviter.getGameProfile().getName() + " and "
+                + player.getGameProfile().getName() + " started a Soul Link run."));
         data.setDirty();
         INVITATIONS.entrySet().removeIf(entry -> entry.getKey().equals(player.getUUID())
                 || entry.getKey().equals(inviter.getUUID()) || entry.getValue().inviter().equals(player.getUUID())
@@ -146,6 +149,8 @@ public final class SoulLinkManager {
         Capture capture = new Capture(player.getUUID(), pokemon.getUuid(), pokemon.getDisplayName(false).getString(), biome.toString(),
                 pokemon.getSpecies().getResourceIdentifier().toString(), pokemon.getAspects());
         run.captures.add(capture);
+        run.log.add(formatLogEntry(capture.name() + " was caught in "
+                + BiomeNames.display(biome.toString()).getString() + "."));
         data.setDirty();
         Capture other = run.capture(run.partner(player.getUUID()), biome.toString());
         MutableComponent catchDetails = SoulLinkMessages.text("You caught ")
@@ -165,6 +170,7 @@ public final class SoulLinkManager {
             deliver(player.server, data, run.partner(player.getUUID()), SoulLinkMessages.line(partnerMessage));
         } else {
             deliver(player.server, data, run.partner(player.getUUID()), SoulLinkMessages.line(partnerMessage));
+            run.log.add(formatLogEntry(capture.name() + " paired with " + other.name() + "."));
             Component text = SoulLinkMessages.line(SoulLinkMessages.text("Pair formed  ·  ")
                     .append(SoulLinkMessages.highlight(capture.name()))
                     .append(SoulLinkMessages.text(" ↔ ")).append(SoulLinkMessages.highlight(other.name()))
@@ -182,6 +188,9 @@ public final class SoulLinkManager {
                 if (!capture.pokemon().equals(pokemon.getUuid())) continue;
                 Capture other = run.capture(run.partner(capture.player()), capture.biome());
                 if (other != null) {
+                    run.log.add(formatLogEntry(run.name(capture.player()) + "'s "
+                            + pokemon.getDisplayName(false).getString() + " fainted."));
+                    data.setDirty();
                     deliver(server, data, other.player(), SoulLinkMessages.line(
                             SoulLinkMessages.highlight(run.name(capture.player()) + "'s " + pokemon.getDisplayName(false).getString())
                                     .append(SoulLinkMessages.text(" fainted!").withStyle(style -> style.withColor(SoulLinkMessages.WARNING)))
@@ -212,6 +221,7 @@ public final class SoulLinkManager {
         SoulLinkData data = SoulLinkData.get(player.server);
         Run run = data.findRun(player.getUUID());
         if (run == null) { error(player, "You are not in a Soul Link run."); return; }
+        run.log.add(formatLogEntry("Run ended."));
         data.runs.remove(run);
         SoulLinkCaptureRules.clearRun(run);
         data.setDirty();
@@ -227,6 +237,7 @@ public final class SoulLinkManager {
         if (run.paused == paused) return error(player, "Your Soul Link run is already "
                 + (paused ? "paused." : "active."));
         run.paused = paused;
+        run.log.add(formatLogEntry(paused ? "Run paused." : "Run resumed."));
         SoulLinkCaptureRules.clearRun(run);
         data.setDirty();
         String text = "[Soul Link] " + player.getGameProfile().getName()

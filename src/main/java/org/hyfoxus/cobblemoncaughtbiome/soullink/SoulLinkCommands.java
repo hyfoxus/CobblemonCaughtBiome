@@ -39,6 +39,8 @@ final class SoulLinkCommands {
                         .then(biomeCommand())
                         .then(Commands.literal("online").executes(context ->
                                 SoulLinkMenu.openOnline(context.getSource().getPlayerOrException())))
+                        .then(Commands.literal("logs").executes(context ->
+                                SoulLinkJournal.openLogs(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("end")
                                 .executes(context -> {
                                     context.getSource().sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(
@@ -70,7 +72,7 @@ final class SoulLinkCommands {
 
     private static int help(CommandSourceStack source) {
         source.sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(
-                "/soullink invite <player>, accept, decline, status, online, biomes [all|available|waiting|linked] [page], stop, resume, end")), false);
+                "/soullink invite <player>, accept, decline, status, online, biomes [all|available|waiting|linked] [page], logs, stop, resume, end")), false);
         return 1;
     }
 
