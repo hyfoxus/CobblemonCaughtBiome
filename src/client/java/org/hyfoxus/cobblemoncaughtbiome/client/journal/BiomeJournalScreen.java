@@ -25,6 +25,7 @@ public final class BiomeJournalScreen extends Screen {
     private boolean compact;
     private int initialPage;
     private int refreshTicks;
+    private int endConfirmTicks;
 
     private enum Mode { BIOME, INVITE }
     private enum ContentTab { BIOMES, LOGS }
@@ -58,7 +59,7 @@ public final class BiomeJournalScreen extends Screen {
         biomeTab.setHeader(this.header);
         biomeTab.setRows(rows);
         refreshTicks = 0;
-        applyFilters();
+        rebuildWidgets();
     }
 
     void updateOnline(CompoundTag online) {
@@ -81,7 +82,7 @@ public final class BiomeJournalScreen extends Screen {
 
     private void actAndRefresh(String command) {
         sendCommand(command);
-        sendCommand("soullink menu");
+        sendCommand(tab == ContentTab.LOGS ? "soullink logs" : "soullink menu");
     }
 
     @Override
@@ -99,8 +100,18 @@ public final class BiomeJournalScreen extends Screen {
             addRenderableWidget(new JournalButton(left + panelWidth - 262, compact ? 31 : 50, 74,
                     Component.literal(header.getBoolean("paused") ? "Resume" : "Pause"), false,
                     button -> actAndRefresh(header.getBoolean("paused") ? "soullink resume" : "soullink stop")));
-            addRenderableWidget(new JournalButton(left + panelWidth - 180, compact ? 31 : 50, 44, Component.literal("End"), false,
-                    button -> actAndRefresh("soullink end")));
+            addRenderableWidget(new JournalButton(left + panelWidth - 180, compact ? 31 : 50, 44,
+                    Component.literal(endConfirmTicks > 0 ? "Confirm?" : "End"), false,
+                    button -> {
+                        if (endConfirmTicks > 0) {
+                            endConfirmTicks = 0;
+                            actAndRefresh("soullink end confirm");
+                        } else {
+                            endConfirmTicks = 100;
+                            sendCommand("soullink end");
+                            rebuildWidgets();
+                        }
+                    }));
             addRenderableWidget(new JournalButton(left + panelWidth - 128, compact ? 31 : 50, 66, Component.literal("Refresh"), false,
                     button -> refresh()));
             addRenderableWidget(new JournalButton(left + panelWidth - 58, compact ? 31 : 50, 44, Component.literal("Close"), false,
@@ -151,7 +162,7 @@ public final class BiomeJournalScreen extends Screen {
     }
 
     private void applyFilters() {
-        if (search == null) return;
+        if (tab != ContentTab.BIOMES || search == null) return;
         biomeTab.applyFilters();
     }
 
@@ -174,6 +185,10 @@ public final class BiomeJournalScreen extends Screen {
     @Override
     public void tick() {
         if (refreshTicks > 0) refreshTicks--;
+        if (endConfirmTicks > 0) {
+            endConfirmTicks--;
+            if (endConfirmTicks == 0) rebuildWidgets();
+        }
         if (mode == Mode.BIOME && tab == ContentTab.BIOMES) biomeTab.tick();
     }
 

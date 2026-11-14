@@ -69,9 +69,9 @@ final class InviteTab {
         if (pendingInviter != null) {
             int bannerTop = contentTop;
             AbstractWidget accept = new JournalButton(left + 14, bannerTop + 28, 90, Component.literal("Accept"), false,
-                    button -> sendCommand.accept("soullink accept " + pendingToken));
+                    button -> { sendCommand.accept("soullink accept " + pendingToken); sendCommand.accept("soullink menu"); });
             AbstractWidget decline = new JournalButton(left + 112, bannerTop + 28, 90, Component.literal("Decline"), false,
-                    button -> sendCommand.accept("soullink decline " + pendingToken));
+                    button -> { sendCommand.accept("soullink decline " + pendingToken); sendCommand.accept("soullink menu"); });
             addWidget.accept(accept);
             addWidget.accept(decline);
             widgets.add(accept);

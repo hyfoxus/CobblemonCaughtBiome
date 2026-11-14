@@ -37,7 +37,7 @@ public final class JournalClient {
                     for (Tag row : data.getList("rows", Tag.TAG_COMPOUND)) rows.add(((CompoundTag) row).copy());
                     nextChunk++;
                     if (nextChunk == data.getInt("chunks")) {
-                        if (context.client().screen instanceof BiomeJournalScreen screen) {
+                        if (context.client().screen instanceof BiomeJournalScreen screen && screen.isBiomeMode()) {
                             screen.update(data, List.copyOf(rows));
                         } else {
                             context.client().setScreen(new BiomeJournalScreen(data, List.copyOf(rows)));

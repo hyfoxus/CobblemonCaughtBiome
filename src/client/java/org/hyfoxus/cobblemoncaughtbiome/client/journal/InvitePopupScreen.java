@@ -47,6 +47,12 @@ public final class InvitePopupScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Default Screen#renderBackground blurs and dims the world behind the screen; this popup must
+        // stay a small, unobtrusive overlay above the hotbar, not darken/blur the player's whole view.
+    }
+
+    @Override
     public void tick() {
         ticksRemaining--;
         if (ticksRemaining <= 0 && minecraft != null) minecraft.setScreen(null);
