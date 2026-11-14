@@ -8,12 +8,16 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import org.hyfoxus.cobblemoncaughtbiome.network.JournalPayload;
+import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkLogPayload;
 import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkOnlinePayload;
 
 public final class JournalClient {
     private static UUID snapshot;
     private static int nextChunk;
     private static final List<CompoundTag> rows = new ArrayList<>();
+    private static UUID logSnapshot;
+    private static int logNextChunk;
+    private static final List<String> logEntries = new ArrayList<>();
 
     private JournalClient() { }
 
@@ -50,11 +54,36 @@ public final class JournalClient {
                         context.client().setScreen(new BiomeJournalScreen(data));
                     }
                 }));
+        ClientPlayNetworking.registerGlobalReceiver(SoulLinkLogPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    if (context.client().getConnection() == null) return;
+                    CompoundTag data = payload.data();
+                    int chunk = data.getInt("chunk");
+                    if (chunk == 0) {
+                        logSnapshot = data.getUUID("snapshot");
+                        logEntries.clear();
+                        logNextChunk = 0;
+                    }
+                    if (logSnapshot == null || !logSnapshot.equals(data.getUUID("snapshot")) || chunk != logNextChunk) return;
+                    for (Tag entry : data.getList("entries", Tag.TAG_STRING)) logEntries.add(entry.getAsString());
+                    logNextChunk++;
+                    if (logNextChunk == data.getInt("chunks")) {
+                        if (context.client().screen instanceof BiomeJournalScreen screen && screen.isBiomeMode()) {
+                            screen.updateLogs(List.copyOf(logEntries));
+                        }
+                        logSnapshot = null;
+                        logNextChunk = 0;
+                        logEntries.clear();
+                    }
+                }));
     }
 
     private static void reset() {
         snapshot = null;
         nextChunk = 0;
         rows.clear();
+        logSnapshot = null;
+        logNextChunk = 0;
+        logEntries.clear();
     }
 }

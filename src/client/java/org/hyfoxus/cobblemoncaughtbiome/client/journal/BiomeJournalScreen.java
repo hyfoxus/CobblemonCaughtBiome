@@ -15,7 +15,9 @@ public final class BiomeJournalScreen extends Screen {
     private static final int GAP = 8;
     private final Mode mode;
     private BiomeTab biomeTab;
+    private LogsTab logsTab;
     private InviteTab inviteTab;
+    private ContentTab tab = ContentTab.BIOMES;
     private CompoundTag header;
     private CompoundTag online;
     private EditBox search;
@@ -25,11 +27,13 @@ public final class BiomeJournalScreen extends Screen {
     private int refreshTicks;
 
     private enum Mode { BIOME, INVITE }
+    private enum ContentTab { BIOMES, LOGS }
 
     public BiomeJournalScreen(CompoundTag header, List<CompoundTag> rows) {
         super(Component.literal("Soul Link · Biome Journal"));
         this.mode = Mode.BIOME;
         this.biomeTab = new BiomeTab(this::addRenderableWidget, this::removeWidget, this::clearPortraitFocus);
+        this.logsTab = new LogsTab();
         this.header = header.copy();
         biomeTab.setHeader(this.header);
         biomeTab.setRows(rows);
@@ -47,6 +51,8 @@ public final class BiomeJournalScreen extends Screen {
 
     boolean isInviteMode() { return mode == Mode.INVITE; }
 
+    boolean isBiomeMode() { return mode == Mode.BIOME; }
+
     void update(CompoundTag header, List<CompoundTag> rows) {
         this.header = header.copy();
         biomeTab.setHeader(this.header);
@@ -59,6 +65,10 @@ public final class BiomeJournalScreen extends Screen {
         this.online = online.copy();
         inviteTab.setData(this.online);
         inviteTab.rebuildWidgets();
+    }
+
+    void updateLogs(List<String> entries) {
+        logsTab.setEntries(entries);
     }
 
     private void clearPortraitFocus() {
@@ -77,36 +87,45 @@ public final class BiomeJournalScreen extends Screen {
         if (mode == Mode.BIOME) {
             contentTop = compact ? 88 : 108;
             contentBottom = Math.max(contentTop + 32, height - (compact ? 23 : 34));
-            cardHeight = compact ? CARD_HEIGHT_COMPACT : CARD_HEIGHT;
-            columns = panelWidth >= 490 ? 2 : 1;
-            cardWidth = (panelWidth - 28 - GAP * (columns - 1)) / columns;
-            biomeTab.setFont(font);
-            biomeTab.setLayout(left, panelWidth, contentTop, contentBottom, columns, cardWidth, cardHeight, compact);
-            search = new EditBox(font, left + 18, compact ? 36 : 55,
-                    Math.max(30, panelWidth - 156), 18, Component.literal("Search biomes"));
-            search.setBordered(false);
-            search.setTextColor(SoulLinkColors.TEXT);
-            search.setHint(Component.literal("Search biomes…"));
-            search.setMaxLength(100);
-            search.setValue(biomeTab.query());
-            search.setResponder(value -> { biomeTab.setQuery(value); applyFilters(); });
-            addRenderableWidget(search);
+            addRenderableWidget(new JournalButton(left + 14, compact ? 31 : 50, 50, Component.literal("Biomes"),
+                    tab == ContentTab.BIOMES, button -> { tab = ContentTab.BIOMES; rebuildWidgets(); }));
+            addRenderableWidget(new JournalButton(left + 68, compact ? 31 : 50, 50, Component.literal("Logs"),
+                    tab == ContentTab.LOGS, button -> { tab = ContentTab.LOGS; sendCommand("soullink logs"); rebuildWidgets(); }));
             addRenderableWidget(new JournalButton(left + panelWidth - 128, compact ? 31 : 50, 66, Component.literal("Refresh"), false,
                     button -> refresh()));
             addRenderableWidget(new JournalButton(left + panelWidth - 58, compact ? 31 : 50, 44, Component.literal("Close"), false,
                     button -> onClose()));
-            int tabWidth = (panelWidth - 28 - GAP * 3) / 4;
-            for (BiomeTab.Filter value : BiomeTab.Filter.values()) {
-                addRenderableWidget(new JournalButton(left + 14 + value.ordinal() * (tabWidth + GAP), compact ? 59 : 79, tabWidth,
-                        Component.literal(value.label), biomeTab.filter() == value, button -> {
-                            biomeTab.selectFilter(value);
-                            rebuildWidgets();
-                        }));
-            }
-            applyFilters();
-            if (initialPage > 1) {
-                biomeTab.scrollToPage(initialPage);
-                initialPage = 1;
+            if (tab == ContentTab.BIOMES) {
+                cardHeight = compact ? CARD_HEIGHT_COMPACT : CARD_HEIGHT;
+                columns = panelWidth >= 490 ? 2 : 1;
+                cardWidth = (panelWidth - 28 - GAP * (columns - 1)) / columns;
+                biomeTab.setFont(font);
+                biomeTab.setLayout(left, panelWidth, contentTop, contentBottom, columns, cardWidth, cardHeight, compact);
+                search = new EditBox(font, left + 130, compact ? 36 : 55,
+                        Math.max(30, panelWidth - 268), 18, Component.literal("Search biomes"));
+                search.setBordered(false);
+                search.setTextColor(SoulLinkColors.TEXT);
+                search.setHint(Component.literal("Search biomes…"));
+                search.setMaxLength(100);
+                search.setValue(biomeTab.query());
+                search.setResponder(value -> { biomeTab.setQuery(value); applyFilters(); });
+                addRenderableWidget(search);
+                int tabWidth = (panelWidth - 28 - GAP * 3) / 4;
+                for (BiomeTab.Filter value : BiomeTab.Filter.values()) {
+                    addRenderableWidget(new JournalButton(left + 14 + value.ordinal() * (tabWidth + GAP), compact ? 59 : 79, tabWidth,
+                            Component.literal(value.label), biomeTab.filter() == value, button -> {
+                                biomeTab.selectFilter(value);
+                                rebuildWidgets();
+                            }));
+                }
+                applyFilters();
+                if (initialPage > 1) {
+                    biomeTab.scrollToPage(initialPage);
+                    initialPage = 1;
+                }
+            } else {
+                logsTab.setFont(font);
+                logsTab.setLayout(left, panelWidth, contentTop, contentBottom);
             }
         } else {
             contentTop = compact ? 60 : 80;
@@ -129,7 +148,9 @@ public final class BiomeJournalScreen extends Screen {
     private void refresh() {
         if (minecraft != null && minecraft.getConnection() != null && refreshTicks == 0) {
             refreshTicks = 100;
-            minecraft.getConnection().sendCommand("soullink biomes " + biomeTab.filter().name().toLowerCase(Locale.ROOT));
+            String command = tab == ContentTab.BIOMES
+                    ? "soullink biomes " + biomeTab.filter().name().toLowerCase(Locale.ROOT) : "soullink logs";
+            minecraft.getConnection().sendCommand(command);
         }
     }
 
@@ -143,7 +164,7 @@ public final class BiomeJournalScreen extends Screen {
     @Override
     public void tick() {
         if (refreshTicks > 0) refreshTicks--;
-        if (mode == Mode.BIOME) biomeTab.tick();
+        if (mode == Mode.BIOME && tab == ContentTab.BIOMES) biomeTab.tick();
     }
 
     @Override
@@ -152,8 +173,12 @@ public final class BiomeJournalScreen extends Screen {
         graphics.fill(left, 8, left + panelWidth, height - 8, 0xF0121C27);
         graphics.fill(left + 14, compact ? 31 : 50, left + panelWidth - 134,
                 compact ? 51 : 70, 0xFF0D1721);
-        if (mode == Mode.BIOME) biomeTab.renderCardBackgrounds(graphics);
-        else inviteTab.renderBackgrounds(graphics);
+        if (mode == Mode.BIOME) {
+            if (tab == ContentTab.BIOMES) biomeTab.renderCardBackgrounds(graphics);
+            else logsTab.renderBackgrounds(graphics);
+        } else {
+            inviteTab.renderBackgrounds(graphics);
+        }
         // Everything from here on is drawn after super.render() below: anything drawn before the widget
         // pipeline runs renders blurry on this screen (confirmed empirically), after it renders sharp.
         // Only backgrounds that sit behind a widget (panel/search-box fill, card fill/backdrop) stay above.
@@ -161,20 +186,25 @@ public final class BiomeJournalScreen extends Screen {
         graphics.renderOutline(left, 8, panelWidth, height - 16, 0xFF34434F);
         graphics.fill(left, 8, left + panelWidth, 10, 0xFF000000 | SoulLinkColors.TEAL);
         if (mode == Mode.BIOME) {
-            biomeTab.renderScrollbar(graphics);
             graphics.drawString(font, fit("SOUL LINK  /  BIOME JOURNAL", panelWidth - 28), left + 14,
                     compact ? 12 : 18, SoulLinkColors.TEAL, false);
             String names = header.getString("firstName") + "  ↔  " + header.getString("secondName")
                     + (header.getBoolean("paused") ? "  ·  Paused" : "  ·  Active");
             graphics.drawString(font, fit(names, panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
-            biomeTab.renderCardLabels(graphics);
-            if (biomeTab.isEmpty()) {
-                graphics.drawCenteredString(font, fit("No biomes match your search or filter.", panelWidth - 28), width / 2,
-                        contentTop + 14, SoulLinkColors.TEXT);
+            if (tab == ContentTab.BIOMES) {
+                biomeTab.renderScrollbar(graphics);
+                biomeTab.renderCardLabels(graphics);
+                if (biomeTab.isEmpty()) {
+                    graphics.drawCenteredString(font, fit("No biomes match your search or filter.", panelWidth - 28), width / 2,
+                            contentTop + 14, SoulLinkColors.TEXT);
+                }
+                String counts = "Available " + biomeTab.count(BiomeTab.Filter.AVAILABLE) + "   ·   Waiting " + biomeTab.count(BiomeTab.Filter.WAITING)
+                        + "   ·   Linked " + biomeTab.count(BiomeTab.Filter.LINKED);
+                graphics.drawString(font, fit(counts, panelWidth - 28), left + 14, height - 25, SoulLinkColors.TEXT, false);
+            } else {
+                logsTab.renderScrollbar(graphics);
+                logsTab.renderLabels(graphics);
             }
-            String counts = "Available " + biomeTab.count(BiomeTab.Filter.AVAILABLE) + "   ·   Waiting " + biomeTab.count(BiomeTab.Filter.WAITING)
-                    + "   ·   Linked " + biomeTab.count(BiomeTab.Filter.LINKED);
-            graphics.drawString(font, fit(counts, panelWidth - 28), left + 14, height - 25, SoulLinkColors.TEXT, false);
         } else {
             graphics.drawString(font, fit("SOUL LINK  /  INVITE", panelWidth - 28), left + 14,
                     compact ? 12 : 18, SoulLinkColors.TEAL, false);
@@ -188,33 +218,38 @@ public final class BiomeJournalScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
-        boolean handled = mode == Mode.BIOME ? biomeTab.mouseScrolled(mouseX, mouseY, vertical)
-                : inviteTab.mouseScrolled(mouseX, mouseY, vertical);
+        boolean handled;
+        if (mode == Mode.BIOME) {
+            handled = tab == ContentTab.BIOMES ? biomeTab.mouseScrolled(mouseX, mouseY, vertical)
+                    : logsTab.mouseScrolled(mouseX, mouseY, vertical);
+        } else {
+            handled = inviteTab.mouseScrolled(mouseX, mouseY, vertical);
+        }
         if (handled) return true;
         return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (mode == Mode.BIOME && biomeTab.mouseClicked(mouseX, mouseY, button)) return true;
+        if (mode == Mode.BIOME && tab == ContentTab.BIOMES && biomeTab.mouseClicked(mouseX, mouseY, button)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (mode == Mode.BIOME && biomeTab.mouseDragged(mouseX, mouseY)) return true;
+        if (mode == Mode.BIOME && tab == ContentTab.BIOMES && biomeTab.mouseDragged(mouseX, mouseY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (mode == Mode.BIOME) biomeTab.mouseReleased();
+        if (mode == Mode.BIOME && tab == ContentTab.BIOMES) biomeTab.mouseReleased();
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
-        if (mode == Mode.BIOME && !search.isFocused() && biomeTab.keyPressed(key)) return true;
+        if (mode == Mode.BIOME && tab == ContentTab.BIOMES && !search.isFocused() && biomeTab.keyPressed(key)) return true;
         return super.keyPressed(key, scanCode, modifiers);
     }
 
