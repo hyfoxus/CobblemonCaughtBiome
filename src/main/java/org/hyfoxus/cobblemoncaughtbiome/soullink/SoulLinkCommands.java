@@ -41,6 +41,8 @@ final class SoulLinkCommands {
                                 SoulLinkMenu.openOnline(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("logs").executes(context ->
                                 SoulLinkJournal.openLogs(context.getSource().getPlayerOrException())))
+                        .then(Commands.literal("menu").executes(context ->
+                                SoulLinkJournal.openMenu(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("end")
                                 .executes(context -> {
                                     context.getSource().sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(

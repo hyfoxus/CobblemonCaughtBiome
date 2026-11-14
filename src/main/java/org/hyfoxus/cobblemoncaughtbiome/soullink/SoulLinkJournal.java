@@ -56,6 +56,11 @@ final class SoulLinkJournal {
         return 1;
     }
 
+    static int openMenu(ServerPlayer player) {
+        return SoulLinkData.get(player.server).findRun(player.getUUID()) != null
+                ? open(player, "all", 1) : SoulLinkMenu.openOnline(player);
+    }
+
     static int open(ServerPlayer player, String filter, int page) {
         SoulLinkData data = SoulLinkData.get(player.server);
         Run run = data.findRun(player.getUUID());
