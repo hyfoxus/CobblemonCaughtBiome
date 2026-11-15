@@ -45,12 +45,13 @@ public final class SoulLinkManager {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
             SoulLinkData data = SoulLinkData.get(server);
-            Run run = data.activeRun(player.getUUID());
-            if (run != null) {
-                if (run.first.equals(player.getUUID())) run.firstName = player.getGameProfile().getName();
-                else run.secondName = player.getGameProfile().getName();
-                data.setDirty();
+            String name = player.getGameProfile().getName();
+            List<Run> runs = data.runsOf(player.getUUID());
+            for (Run run : runs) {
+                if (run.first.equals(player.getUUID())) run.firstName = name;
+                if (run.second.equals(player.getUUID())) run.secondName = name;
             }
+            if (!runs.isEmpty()) data.setDirty();
             List<String> pending = data.notifications.remove(player.getUUID());
             if (pending != null) {
                 pending.forEach(message -> player.sendSystemMessage(restoreMessage(server, message)));
@@ -73,8 +74,6 @@ public final class SoulLinkManager {
     static boolean invite(ServerPlayer inviter, ServerPlayer target) {
         SoulLinkData data = SoulLinkData.get(inviter.server);
         if (inviter.getUUID().equals(target.getUUID())) return error(inviter, "You cannot invite yourself.");
-        if (data.activeRun(inviter.getUUID()) != null || data.activeRun(target.getUUID()) != null)
-            return error(inviter, "One of you is already in a Soul Link run.");
         Invitation existing = INVITATIONS.get(target.getUUID());
         if (existing != null && existing.expiresAt() > inviter.server.getTickCount())
             return error(inviter, "That player already has a pending invitation.");
@@ -112,21 +111,59 @@ public final class SoulLinkManager {
         ServerPlayer inviter = player.server.getPlayerList().getPlayer(invite.inviter());
         if (inviter == null) return error(player, "The inviting player must be online.");
         SoulLinkData data = SoulLinkData.get(player.server);
-        if (data.activeRun(player.getUUID()) != null || data.activeRun(inviter.getUUID()) != null)
-            return error(player, "One of you is already in a Soul Link run.");
         Run run = data.createShared(inviter.getUUID(), inviter.getGameProfile().getName(),
                 player.getUUID(), player.getGameProfile().getName());
         run.log.add(formatLogEntry(inviter.getGameProfile().getName() + " and "
                 + player.getGameProfile().getName() + " started a Soul Link run."));
-        data.setDirty();
         INVITATIONS.entrySet().removeIf(entry -> entry.getKey().equals(player.getUUID())
                 || entry.getKey().equals(inviter.getUUID()) || entry.getValue().inviter().equals(player.getUUID())
                 || entry.getValue().inviter().equals(inviter.getUUID()));
-        message(player, "Soul Link started with " + inviter.getGameProfile().getName() + ".");
-        message(inviter, "Soul Link started with " + player.getGameProfile().getName() + ".");
+        message(player, "Soul Link started with " + inviter.getGameProfile().getName()
+                + ". Now playing: " + run.title + ".");
+        message(inviter, "Soul Link started with " + player.getGameProfile().getName()
+                + ". Now playing: " + run.title + ".");
         pushRefresh(player);
         pushRefresh(inviter);
         return true;
+    }
+
+    static boolean startSolo(ServerPlayer player) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        String name = player.getGameProfile().getName();
+        Run run = data.createSolo(player.getUUID(), name);
+        run.log.add(formatLogEntry(name + " started a solo Soul Link run."));
+        message(player, "Solo run started. Now playing: " + run.title + ".");
+        pushRefresh(player);
+        return true;
+    }
+
+    static boolean switchRun(ServerPlayer player, String runId) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        Run run = memberRun(player, data, runId);
+        if (run == null) return false;
+        data.select(player.getUUID(), run);
+        message(player, "Switched to " + run.title + ".");
+        pushRefresh(player);
+        return true;
+    }
+
+    static boolean freePlay(ServerPlayer player) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        if (data.activeRun(player.getUUID()) == null) return error(player, "You are already in free play.");
+        data.clearSelection(player.getUUID());
+        message(player, "Free play: captures are unrestricted until you switch to a run.");
+        pushRefresh(player);
+        return true;
+    }
+
+    /** Resolves a run id the player typed; messages the player and returns null if it is unusable. */
+    private static Run memberRun(ServerPlayer player, SoulLinkData data, String runId) {
+        UUID id = SoulLinkData.parseRunId(runId);
+        if (id == null) { error(player, "That is not a valid run id."); return null; }
+        Run run = data.run(id);
+        if (run == null) { error(player, "No Soul Link run has that id."); return null; }
+        if (!run.contains(player.getUUID())) { error(player, "You are not a member of that run."); return null; }
+        return run;
     }
 
     static boolean decline(ServerPlayer player, String token) {
@@ -154,7 +191,6 @@ public final class SoulLinkManager {
         run.log.add(formatLogEntry(capture.name() + " was caught in "
                 + BiomeNames.display(biome.toString()).getString() + "."));
         data.setDirty();
-        Capture other = run.capture(run.partner(player.getUUID()), biome.toString());
         MutableComponent catchDetails = SoulLinkMessages.text("You caught ")
                 .append(SoulLinkMessages.highlight(capture.name())).append(SoulLinkMessages.text(" in "))
                 .append(BiomeNames.display(biome.toString()).copy().withStyle(style -> style.withColor(SoulLinkMessages.ACCENT)))
@@ -162,6 +198,11 @@ public final class SoulLinkManager {
         player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 60, 20));
         player.connection.send(new ClientboundSetSubtitleTextPacket(catchDetails));
         player.connection.send(new ClientboundSetTitleTextPacket(SoulLinkMessages.highlight("Congratulations!")));
+        if (run.solo()) {
+            pushRefresh(player);
+            return;
+        }
+        Capture other = run.capture(run.partner(player.getUUID()), biome.toString());
         MutableComponent partnerMessage = SoulLinkMessages.highlight(run.name(player.getUUID()))
                 .append(SoulLinkMessages.text(" has caught ")).append(SoulLinkMessages.highlight(capture.name()))
                 .append(SoulLinkMessages.text(" in "))
@@ -177,8 +218,7 @@ public final class SoulLinkManager {
                     .append(SoulLinkMessages.highlight(capture.name()))
                     .append(SoulLinkMessages.text(" ↔ ")).append(SoulLinkMessages.highlight(other.name()))
                     .append(SoulLinkMessages.text("  ·  ")).append(BiomeNames.display(biome.toString())));
-            deliver(player.server, data, run.first, text);
-            deliver(player.server, data, run.second, text);
+            for (UUID member : run.members()) deliver(player.server, data, member, text);
         }
         pushRefresh(player);
         pushRefresh(player.server, run.partner(player.getUUID()));
@@ -190,6 +230,14 @@ public final class SoulLinkManager {
             if (run.paused) continue;
             for (Capture capture : run.captures) {
                 if (!capture.pokemon().equals(pokemon.getUuid())) continue;
+                if (run.solo()) {
+                    // Nobody to alert in a solo run: only record it in the Logs tab.
+                    run.log.add(formatLogEntry(run.name(capture.player()) + "'s "
+                            + pokemon.getDisplayName(false).getString() + " fainted."));
+                    data.setDirty();
+                    pushRefresh(server, capture.player());
+                    return;
+                }
                 Capture other = run.capture(run.partner(capture.player()), capture.biome());
                 if (other != null) {
                     run.log.add(formatLogEntry(run.name(capture.player()) + "'s "
@@ -223,19 +271,23 @@ public final class SoulLinkManager {
         }
     }
 
-    static void end(ServerPlayer player) {
+    static void end(ServerPlayer player, String runIdOrNull) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.activeRun(player.getUUID());
-        if (run == null) { error(player, "You are not in a Soul Link run."); return; }
+        Run run;
+        if (runIdOrNull == null) {
+            run = data.activeRun(player.getUUID());
+            if (run == null) { error(player, "You are not in a Soul Link run."); return; }
+        } else {
+            run = memberRun(player, data, runIdOrNull);
+            if (run == null) return;
+        }
         run.log.add(formatLogEntry("Run ended."));
         data.remove(run);
         SoulLinkCaptureRules.clearRun(run);
-        data.setDirty();
-        String text = "[Soul Link] " + player.getGameProfile().getName() + " ended your Soul Link run.";
-        deliver(player.server, data, run.first, text);
-        deliver(player.server, data, run.second, text);
-        pushRefresh(player.server, run.first);
-        pushRefresh(player.server, run.second);
+        String text = "[Soul Link] " + player.getGameProfile().getName() + " ended your Soul Link run: "
+                + run.title + ".";
+        for (UUID member : run.members()) deliver(player.server, data, member, text);
+        for (UUID member : run.members()) pushRefresh(player.server, member);
     }
 
     static boolean setPaused(ServerPlayer player, boolean paused) {
@@ -251,10 +303,8 @@ public final class SoulLinkManager {
         String text = "[Soul Link] " + player.getGameProfile().getName()
                 + (paused ? " paused your run. Captures are unrestricted and will not count toward progress."
                 : " resumed your run. Biome capture limits are active again.");
-        deliver(player.server, data, run.first, text);
-        deliver(player.server, data, run.second, text);
-        pushRefresh(player.server, run.first);
-        pushRefresh(player.server, run.second);
+        for (UUID member : run.members()) deliver(player.server, data, member, text);
+        for (UUID member : run.members()) pushRefresh(player.server, member);
         return true;
     }
 

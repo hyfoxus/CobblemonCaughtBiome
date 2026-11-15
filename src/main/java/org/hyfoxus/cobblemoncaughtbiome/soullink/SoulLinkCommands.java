@@ -43,18 +43,28 @@ final class SoulLinkCommands {
                                 SoulLinkJournal.openLogs(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("menu").executes(context ->
                                 SoulLinkJournal.openMenu(context.getSource().getPlayerOrException())))
+                        .then(Commands.literal("solo").executes(context ->
+                                SoulLinkManager.startSolo(context.getSource().getPlayerOrException()) ? 1 : 0))
+                        .then(Commands.literal("switch").then(Commands.argument("run", StringArgumentType.word())
+                                .executes(context -> SoulLinkManager.switchRun(context.getSource().getPlayerOrException(),
+                                        StringArgumentType.getString(context, "run")) ? 1 : 0)))
+                        .then(Commands.literal("free").executes(context ->
+                                SoulLinkManager.freePlay(context.getSource().getPlayerOrException()) ? 1 : 0))
                         .then(Commands.literal("end")
-                                .executes(context -> {
-                                    context.getSource().sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(
-                                            "Ending clears both players' pair tracking and biome progress. Your Pokémon are kept. ")
-                                            .append(SoulLinkMessages.button("End run", "/soullink end confirm",
-                                                    SoulLinkMessages.WARNING, "Permanently end this run"))), false);
-                                    return 1;
-                                })
+                                .executes(context -> explainEnd(context.getSource(), "/soullink end confirm"))
+                                // The literal is matched before the run-id argument, so "end confirm" never parses as an id.
                                 .then(Commands.literal("confirm").executes(context -> {
-                                    SoulLinkManager.end(context.getSource().getPlayerOrException());
+                                    SoulLinkManager.end(context.getSource().getPlayerOrException(), null);
                                     return 1;
-                                })))
+                                }))
+                                .then(Commands.argument("run", StringArgumentType.word())
+                                        .executes(context -> explainEnd(context.getSource(),
+                                                "/soullink end " + StringArgumentType.getString(context, "run") + " confirm"))
+                                        .then(Commands.literal("confirm").executes(context -> {
+                                            SoulLinkManager.end(context.getSource().getPlayerOrException(),
+                                                    StringArgumentType.getString(context, "run"));
+                                            return 1;
+                                        }))))
                         .then(Commands.literal("invite").then(Commands.argument("player", StringArgumentType.word())
                                 .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                         context.getSource().getServer().getPlayerList().getPlayers().stream()
@@ -74,7 +84,16 @@ final class SoulLinkCommands {
 
     private static int help(CommandSourceStack source) {
         source.sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(
-                "/soullink invite <player>, accept, decline, status, online, biomes [all|available|waiting|linked] [page], logs, stop, resume, end")), false);
+                "/soullink invite <player>, accept, decline, solo, switch <run-id>, free, status, online, "
+                        + "biomes [all|available|waiting|linked] [page], logs, stop, resume, end [run-id]")), false);
+        return 1;
+    }
+
+    private static int explainEnd(CommandSourceStack source, String confirmCommand) {
+        source.sendSuccess(() -> SoulLinkMessages.line(SoulLinkMessages.text(
+                "Ending clears both players' pair tracking and biome progress. Your Pokémon are kept. ")
+                .append(SoulLinkMessages.button("End run", confirmCommand,
+                        SoulLinkMessages.WARNING, "Permanently end this run"))), false);
         return 1;
     }
 
@@ -82,6 +101,11 @@ final class SoulLinkCommands {
         ServerPlayer player = source.getPlayerOrException();
         Run run = SoulLinkData.get(source.getServer()).activeRun(player.getUUID());
         if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
+        if (run.solo()) {
+            SoulLinkManager.message(player, (run.paused ? "Paused" : "Active") + " — Solo run: " + run.title
+                    + ". " + run.captures.size() + " biome(s) caught. Use /soullink biomes for details.");
+            return 1;
+        }
         SoulLinkManager.message(player, (run.paused ? "Paused" : "Active") + " — Partner: "
                 + run.name(run.partner(player.getUUID())));
         int pairs = 0;
