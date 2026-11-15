@@ -64,8 +64,7 @@ final class PokemonPortrait extends AbstractWidget {
         graphics.pose().pushPose();
         try {
             if (state == null) state = new FloatingState();
-            // Cobblemon's PC slot (StorageSlot.kt) uses a fixed 25px box with translate(+1.0) and
-            // scale(2.5F); scale that reference transform up to this widget's actual size.
+            // Cobblemon's PC slot uses a fixed 25px box, scale that up to our widget size.
             float ratio = width / 25F;
             graphics.pose().translate(x + width / 2.0, y + 1.0 * ratio, 100);
             graphics.pose().scale(2.5F * ratio, 2.5F * ratio, 1F);

@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
-/** Pushed to a player the moment they receive a Soul Link invitation. */
 public record SoulLinkInvitePayload(CompoundTag data) implements CustomPacketPayload {
     public static final Type<SoulLinkInvitePayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("cobblemoncaughtbiome", "soullink_invite"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SoulLinkInvitePayload> CODEC = StreamCodec.of(

@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
-/** A bounded chunk of a run's diary log, sent the same chunked way as {@link JournalPayload}. */
 public record SoulLinkLogPayload(CompoundTag data) implements CustomPacketPayload {
     public static final Type<SoulLinkLogPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("cobblemoncaughtbiome", "soullink_log"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SoulLinkLogPayload> CODEC = StreamCodec.of(

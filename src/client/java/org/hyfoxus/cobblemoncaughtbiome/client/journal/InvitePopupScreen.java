@@ -6,7 +6,6 @@ import net.minecraft.network.chat.Component;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 import org.lwjgl.glfw.GLFW;
 
-/** Small, non-pausing popup anchored above the hotbar for an incoming Soul Link invite. */
 public final class InvitePopupScreen extends Screen {
     private static final int PANEL_WIDTH = 220;
     private static final int PANEL_HEIGHT = 50;
@@ -50,8 +49,6 @@ public final class InvitePopupScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Default Screen#renderBackground blurs and dims the world behind the screen; this popup must
-        // stay a small, unobtrusive overlay above the hotbar, not darken/blur the player's whole view.
     }
 
     @Override

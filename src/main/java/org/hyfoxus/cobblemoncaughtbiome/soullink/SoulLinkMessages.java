@@ -5,7 +5,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 
-/** One quiet, consistent palette for Soul Link announcements and actions. */
 final class SoulLinkMessages {
     static final int TEXT = SoulLinkColors.TEXT;
     static final int ACCENT = SoulLinkColors.GOLD;

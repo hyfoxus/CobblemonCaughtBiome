@@ -205,9 +205,7 @@ public final class BiomeJournalScreen extends Screen {
         } else {
             inviteTab.renderBackgrounds(graphics);
         }
-        // Everything from here on is drawn after super.render() below: anything drawn before the widget
-        // pipeline runs renders blurry on this screen (confirmed empirically), after it renders sharp.
-        // Only backgrounds that sit behind a widget (panel/search-box fill, card fill/backdrop) stay above.
+        // text drawn before super.render() comes out blurry on this screen, so everything else goes after
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.renderOutline(left, 8, panelWidth, height - 16, 0xFF34434F);
         graphics.fill(left, 8, left + panelWidth, 10, 0xFF000000 | SoulLinkColors.TEAL);

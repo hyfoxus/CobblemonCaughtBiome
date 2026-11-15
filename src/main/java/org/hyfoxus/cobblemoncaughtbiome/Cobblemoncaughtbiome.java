@@ -14,15 +14,12 @@ public class Cobblemoncaughtbiome implements ModInitializer {
     public void onInitialize() {
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
             ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-                // Gradle test clients have offline identities, not authenticated accounts.
                 if (!server.isDedicatedServer()) {
                     server.setUsesAuthentication(false);
                 }
             });
         }
         SoulLinkManager.initialize();
-        // Written at ball-hit time, before the Pokemon joins the party, so the
-        // party-add packet and the save both already contain it.
         CobblemonEvents.THROWN_POKEBALL_HIT.subscribe(event -> {
             Entity ball = event.getPokeBall();
             if (!(ball.level() instanceof ServerLevel level)) {

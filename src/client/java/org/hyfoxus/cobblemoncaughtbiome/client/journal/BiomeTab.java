@@ -15,14 +15,10 @@ import org.hyfoxus.cobblemoncaughtbiome.BiomeNames;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 import org.lwjgl.glfw.GLFW;
 
-/** Owns the biome grid: cards, portraits, scrolling/filtering. Extracted from {@link BiomeJournalScreen}. */
 final class BiomeTab {
     private static final int GAP = 8;
-    /** Height of the backdrop/name/status banner at the top of each card. */
     private static final int HEADER_HEIGHT = 30;
-    /** Baseline offset of the owner-name labels from the card's bottom edge (non-compact only). */
     private static final int FOOTER_LABEL_OFFSET = 18;
-    /** Breathing room above the header and below the portrait band. */
     private static final int PORTRAIT_PAD = 3;
 
     private final Consumer<AbstractWidget> addWidget;
@@ -113,18 +109,15 @@ final class BiomeTab {
         positionPortraits();
     }
 
-    /** Top of the portrait band, relative to the card's own top edge. */
     private int portraitBandTop() {
         return HEADER_HEIGHT + PORTRAIT_PAD;
     }
 
-    /** Height of the portrait band: between the header banner and the footer name labels (or the card's bottom edge, when compact). */
     private int portraitBandHeight() {
         int bottom = cardHeight - (compact ? PORTRAIT_PAD : FOOTER_LABEL_OFFSET + PORTRAIT_PAD);
         return bottom - portraitBandTop();
     }
 
-    /** Portrait side length: fills the band's height, capped so the two portraits never touch widthwise. */
     private int portraitSize() {
         return Math.max(24, Math.min(portraitBandHeight(), cardWidth / 2 - 8));
     }
@@ -187,8 +180,6 @@ final class BiomeTab {
     private void renderCardBackground(GuiGraphics graphics, Row row, int x, int y) {
         graphics.fill(x, y, x + cardWidth, y + cardHeight, 0xFF34515A);
         BiomeBackdrop.draw(graphics, row.theme(), x + 1, y + 1, cardWidth - 2, 29);
-        // Darken only behind the name/status text, in two flat steps (not a smooth gradient) so the
-        // banner's art underneath still reads as sharp pixel art; the lower part stays fully visible.
         graphics.fill(x + 1, y + 1, x + cardWidth - 1, y + 13, 0x9914212A);
         graphics.fill(x + 1, y + 13, x + cardWidth - 1, y + 22, 0x4014212A);
     }

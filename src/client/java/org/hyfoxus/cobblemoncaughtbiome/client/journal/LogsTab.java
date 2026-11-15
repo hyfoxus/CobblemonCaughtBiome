@@ -7,7 +7,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 
-/** Diary-styled, single-column scrollable list of Soul Link run events. */
 final class LogsTab {
     private static final int ROW_HEIGHT = 16;
     private static final int GAP = 4;

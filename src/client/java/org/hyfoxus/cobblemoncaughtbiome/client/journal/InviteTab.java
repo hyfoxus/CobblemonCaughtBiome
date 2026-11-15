@@ -11,7 +11,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 
-/** Owns the "not in a run yet" view: online-player list with Invite buttons, plus any pending-invite banner. */
 final class InviteTab {
     private static final int ROW_HEIGHT = 24;
     private static final int GAP = 6;

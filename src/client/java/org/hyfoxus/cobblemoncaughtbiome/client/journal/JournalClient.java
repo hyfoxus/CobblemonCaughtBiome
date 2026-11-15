@@ -37,9 +37,6 @@ public final class JournalClient {
                     for (Tag row : data.getList("rows", Tag.TAG_COMPOUND)) rows.add(((CompoundTag) row).copy());
                     nextChunk++;
                     if (nextChunk == data.getInt("chunks")) {
-                        // forceOpen means an explicit command/keybind: always show it. Otherwise this is a
-                        // passive background push - only update an already-open Soul Link screen (switching
-                        // it into Biome mode if it was showing Invite), never interrupt anything else.
                         boolean forceOpen = data.getBoolean("forceOpen");
                         var screen = context.client().screen;
                         if (screen instanceof BiomeJournalScreen bjs && bjs.isBiomeMode()) {

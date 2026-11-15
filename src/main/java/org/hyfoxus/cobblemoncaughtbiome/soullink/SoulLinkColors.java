@@ -1,6 +1,5 @@
 package org.hyfoxus.cobblemoncaughtbiome.soullink;
 
-/** Shared palette for command messages and the biome journal. */
 public final class SoulLinkColors {
     public static final int TEXT = 0xCED5DF;
     public static final int GOLD = 0xE7C97B;

@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerPlayer;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Run;
 
-/** Server-side encounter limits; shiny Pokémon never reserve or consume a biome. */
 final class SoulLinkCaptureRules {
     private static final Map<UUID, Reservation> RESERVATIONS = new HashMap<>();
     private static final Map<UUID, Integer> LAST_REMINDERS = new HashMap<>();
@@ -30,7 +29,6 @@ final class SoulLinkCaptureRules {
             if (event.getPokeBall().getOwner() instanceof ServerPlayer player
                     && !event.isCanceled()
                     && !allowCapture(player, event.getPokemon().getPokemon(), event.getPokeBall())) {
-                // Cobblemon's cancellation path drops the ball instead of starting a capture.
                 event.cancel();
             }
         });

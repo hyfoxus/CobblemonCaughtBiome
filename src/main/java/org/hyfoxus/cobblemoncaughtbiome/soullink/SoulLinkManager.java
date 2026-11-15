@@ -94,8 +94,6 @@ public final class SoulLinkManager {
             invitePayload.putInt("ticksRemaining", 1200);
             ServerPlayNetworking.send(target, new SoulLinkInvitePayload(invitePayload));
         }
-        // Also push a silent refresh so an already-open Invite view's pending-invite banner
-        // updates in place; the popup above only opens when nothing else is already showing.
         SoulLinkMenu.openOnline(target, false);
         return true;
     }

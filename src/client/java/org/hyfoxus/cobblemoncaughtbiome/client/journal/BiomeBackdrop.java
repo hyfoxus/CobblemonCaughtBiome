@@ -2,7 +2,6 @@ package org.hyfoxus.cobblemoncaughtbiome.client.journal;
 
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Small, quiet pixel landscapes. No downloaded artwork or texture dependencies. */
 final class BiomeBackdrop {
     private BiomeBackdrop() { }
 
@@ -16,9 +15,6 @@ final class BiomeBackdrop {
             case "end" -> 0xFF8F82AB;
             default -> 0xFF79A38A;
         };
-        // Flat stepped bands instead of a smooth gradient, so the sky reads as sharp pixel art.
-        // Sampled across the full 0..1 range (not band-centered) so neighboring bands contrast
-        // sharply instead of blending into one another.
         int bands = 3;
         for (int band = 0; band < bands; band++) {
             graphics.fill(x, y + height * band / bands, x + width, y + height * (band + 1) / bands,
@@ -60,7 +56,6 @@ final class BiomeBackdrop {
             for (int i = 9; i < width - 3; i += 27)
                 graphics.fill(x + i, y + 5 + i % 10, x + i + 2, y + 7 + i % 10, 0xFF9685AE);
         }
-        // Text remains legible over every theme.
         graphics.fill(x, y, x + width, y + height, 0x110D141C);
     }
 
