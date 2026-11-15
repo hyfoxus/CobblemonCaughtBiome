@@ -84,7 +84,10 @@ final class SoulLinkJournal {
             tag.putInt("chunk", chunk);
             tag.putInt("chunks", chunks);
             tag.putString("firstName", run.firstName);
-            tag.putString("secondName", run.secondName);
+            tag.putString("secondName", run.solo() ? run.firstName : run.secondName);
+            tag.putString("runId", run.id.toString());
+            tag.putString("runTitle", run.title);
+            tag.putBoolean("solo", run.solo());
             tag.putBoolean("paused", run.paused);
             tag.putString("filter", filter);
             tag.putInt("page", page);
@@ -96,9 +99,11 @@ final class SoulLinkJournal {
                 row.putString("biome", biome);
                 row.putString("theme", theme(player, biomes.get(i)));
                 Capture first = run.capture(run.first, biome);
-                Capture second = run.capture(run.second, biome);
                 if (first != null) row.put("first", first.toTag());
-                if (second != null) row.put("second", second.toTag());
+                if (!run.solo()) {
+                    Capture second = run.capture(run.second, biome);
+                    if (second != null) row.put("second", second.toTag());
+                }
                 rows.add(row);
             }
             tag.put("rows", rows);

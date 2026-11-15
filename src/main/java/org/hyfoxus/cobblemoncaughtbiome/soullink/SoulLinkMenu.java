@@ -28,6 +28,30 @@ final class SoulLinkMenu {
                 .filter(online -> online != player)
                 .forEach(online -> players.add(StringTag.valueOf(online.getGameProfile().getName())));
         tag.put("players", players);
+        SoulLinkData data = SoulLinkData.get(player.server);
+        SoulLinkData.Run active = data.activeRun(player.getUUID());
+        ListTag runs = new ListTag();
+        for (SoulLinkData.Run run : data.runsOf(player.getUUID())) {
+            CompoundTag row = new CompoundTag();
+            row.putString("id", run.id.toString());
+            row.putString("title", run.title);
+            row.putString("members", run.solo() ? run.firstName : run.firstName + " & " + run.secondName);
+            row.putBoolean("solo", run.solo());
+            row.putBoolean("paused", run.paused);
+            row.putBoolean("selected", run == active);
+            int caught = 0;
+            int linked = 0;
+            for (SoulLinkData.Capture capture : run.captures) {
+                if (capture.player().equals(player.getUUID())) caught++;
+                if (!run.solo() && capture.player().equals(run.first)
+                        && run.capture(run.second, capture.biome()) != null) linked++;
+            }
+            row.putInt("caught", caught);
+            row.putInt("linked", linked);
+            runs.add(row);
+        }
+        tag.put("runs", runs);
+        if (active != null) tag.putString("selected", active.id.toString());
         SoulLinkManager.Invitation invite = SoulLinkManager.pendingInvitation(player.getUUID(), player.server);
         if (invite != null) {
             ServerPlayer inviter = player.server.getPlayerList().getPlayer(invite.inviter());

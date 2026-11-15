@@ -313,9 +313,8 @@ public final class SoulLinkManager {
         if (data.activeRun(player.getUUID()) != null) {
             SoulLinkJournal.open(player, "all", 1, false);
             SoulLinkJournal.openLogs(player);
-        } else {
-            SoulLinkMenu.openOnline(player, false);
         }
+        SoulLinkMenu.openOnline(player, false);
     }
 
     private static void pushRefresh(MinecraftServer server, UUID playerId) {
