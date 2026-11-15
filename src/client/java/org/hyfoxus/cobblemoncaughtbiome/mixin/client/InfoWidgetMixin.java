@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import org.hyfoxus.cobblemoncaughtbiome.CaughtBiome;
+import org.hyfoxus.cobblemoncaughtbiome.RunLabel;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,6 +19,7 @@ public abstract class InfoWidgetMixin {
     private static final float SCALE = 0.5F;
     private static final int X_OFFSET = 8;
     private static final int Y_OFFSET = 131;
+    private static final int LINE_GAP = 10;
 
     @Shadow(remap = false)
     @Final
@@ -34,6 +36,8 @@ public abstract class InfoWidgetMixin {
             graphics.pose().scale(SCALE, SCALE, 1F);
             graphics.drawString(Minecraft.getInstance().font,
                     CaughtBiome.display(pokemon.getPersistentData()), x, y, 0xFFFFFF, true);
+            RunLabel.display(pokemon.getPersistentData()).ifPresent(run ->
+                    graphics.drawString(Minecraft.getInstance().font, run, x, y + LINE_GAP, 0xFFFFFF, true));
         } finally {
             graphics.pose().popPose();
         }
