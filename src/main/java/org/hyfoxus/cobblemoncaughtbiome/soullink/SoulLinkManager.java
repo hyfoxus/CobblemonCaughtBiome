@@ -301,8 +301,8 @@ public final class SoulLinkManager {
         SoulLinkCaptureRules.clearRun(run);
         data.setDirty();
         String text = "[Soul Link] " + player.getGameProfile().getName()
-                + (paused ? " paused your run. Captures are unrestricted and will not count toward progress."
-                : " resumed your run. Biome capture limits are active again.");
+                + (paused ? " paused your run \"" + run.title + "\". Captures are unrestricted and will not count toward progress."
+                : " resumed your run \"" + run.title + "\". Biome capture limits are active again.");
         for (UUID member : run.members()) deliver(player.server, data, member, text);
         for (UUID member : run.members()) pushRefresh(player.server, member);
         return true;

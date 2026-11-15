@@ -120,12 +120,14 @@ public final class BiomeJournalScreen extends Screen {
             addRenderableWidget(new JournalButton(left + panelWidth - 180, compact ? 31 : 50, 44,
                     Component.literal(endConfirmTicks > 0 ? "Confirm?" : "End"), false,
                     button -> {
+                        String runId = header.getString("runId");
+                        String endCommand = runId.isEmpty() ? "soullink end" : "soullink end " + runId;
                         if (endConfirmTicks > 0) {
                             endConfirmTicks = 0;
-                            actAndRefresh("soullink end confirm");
+                            actAndRefresh(endCommand + " confirm");
                         } else {
                             endConfirmTicks = 100;
-                            sendCommand("soullink end");
+                            sendCommand(endCommand);
                             rebuildWidgets();
                         }
                     }));

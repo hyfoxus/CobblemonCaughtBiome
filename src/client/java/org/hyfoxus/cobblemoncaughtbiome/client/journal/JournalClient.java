@@ -62,7 +62,10 @@ public final class JournalClient {
                     // player out of the biome view. Forced payloads open or replace the screen.
                     if (screen instanceof BiomeJournalScreen bjs && bjs.isRunsMode()) {
                         bjs.updateOnline(data);
-                    } else if (forceOpen) {
+                    } else if (forceOpen || (screen instanceof BiomeJournalScreen
+                            && !data.contains("selected", Tag.TAG_STRING))) {
+                        // A biome view with no selected run is never valid (its run was ended): show the Runs view.
+                        if (!data.contains("selected", Tag.TAG_STRING)) BiomeJournalScreen.clearPendingLogs();
                         context.client().setScreen(new BiomeJournalScreen(data));
                     }
                 }));

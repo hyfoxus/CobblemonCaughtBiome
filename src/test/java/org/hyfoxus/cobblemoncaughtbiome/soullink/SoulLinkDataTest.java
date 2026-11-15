@@ -69,6 +69,20 @@ class SoulLinkDataTest {
     }
 
     @Test
+    void freePlaySurvivesSaveAndLoad() {
+        SoulLinkData data = new SoulLinkData();
+        Run run = data.createShared(a, "Alex", b, "Sam");
+        data.clearSelection(a);
+        assertNull(data.activeRun(a));
+
+        SoulLinkData loaded = SoulLinkData.load(data.save(new CompoundTag(), null), null);
+
+        assertNotNull(loaded.run(run.id));
+        assertNull(loaded.activeRun(a));
+        assertSame(loaded.run(run.id), loaded.activeRun(b));
+    }
+
+    @Test
     void repeatMemberSetGetsNumberedTitle() {
         SoulLinkData data = new SoulLinkData();
         assertEquals("Alex & Sam", data.createShared(a, "Alex", b, "Sam").title);

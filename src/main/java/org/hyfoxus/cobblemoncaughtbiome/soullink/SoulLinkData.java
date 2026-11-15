@@ -122,8 +122,12 @@ public final class SoulLinkData extends SavedData {
             Run run = data.run(tag.getUUID("run"));
             if (run != null && run.contains(player)) data.selected.put(player, run.id);
         }
-        for (Run run : data.runs) {
-            for (UUID member : run.members()) data.selected.putIfAbsent(member, run.id);
+        // Old saves have no "selected" list: default everyone to their first run. New saves always write
+        // the list (possibly empty), so an absent selection there means free play and must be kept.
+        if (!root.contains("selected", Tag.TAG_LIST)) {
+            for (Run run : data.runs) {
+                for (UUID member : run.members()) data.selected.putIfAbsent(member, run.id);
+            }
         }
         for (Tag entry : root.getList("notifications", Tag.TAG_COMPOUND)) {
             CompoundTag tag = (CompoundTag) entry;
