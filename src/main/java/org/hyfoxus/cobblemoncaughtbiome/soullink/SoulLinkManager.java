@@ -21,6 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.hyfoxus.cobblemoncaughtbiome.BiomeNames;
+import org.hyfoxus.cobblemoncaughtbiome.RunLabel;
 import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkInvitePayload;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Run;
@@ -188,6 +189,7 @@ public final class SoulLinkManager {
         Capture capture = new Capture(player.getUUID(), pokemon.getUuid(), pokemon.getDisplayName(false).getString(), biome.toString(),
                 pokemon.getSpecies().getResourceIdentifier().toString(), pokemon.getAspects());
         run.captures.add(capture);
+        RunLabel.store(pokemon.getPersistentData(), run.id, run.title);
         run.log.add(formatLogEntry(capture.name() + " was caught in "
                 + BiomeNames.display(biome.toString()).getString() + "."));
         data.setDirty();

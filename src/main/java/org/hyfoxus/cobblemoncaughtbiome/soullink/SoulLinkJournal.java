@@ -16,6 +16,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import org.hyfoxus.cobblemoncaughtbiome.RunLabel;
 import org.hyfoxus.cobblemoncaughtbiome.network.JournalPayload;
 import org.hyfoxus.cobblemoncaughtbiome.network.SoulLinkLogPayload;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkData.Capture;
@@ -70,6 +71,7 @@ final class SoulLinkJournal {
             return 0;
         }
         backfillPortraits(player, data, run);
+        backfillRunLabels(player, run);
         List<ResourceLocation> biomes = new ArrayList<>(player.server.registryAccess().registryOrThrow(Registries.BIOME).keySet());
         for (Capture capture : run.captures) {
             ResourceLocation biome = ResourceLocation.tryParse(capture.biome());
@@ -123,6 +125,15 @@ final class SoulLinkJournal {
                 run.captures.set(i, capture.withAppearance(pokemon));
                 data.setDirty();
             }
+        }
+    }
+
+    private static void backfillRunLabels(ServerPlayer viewer, Run run) {
+        var storage = Cobblemon.INSTANCE.getStorage();
+        for (Capture capture : run.captures) {
+            Pokemon pokemon = storage.getParty(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
+            if (pokemon == null) pokemon = storage.getPC(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
+            if (pokemon != null) RunLabel.stampIfAbsent(pokemon.getPersistentData(), run.id, run.title);
         }
     }
 
