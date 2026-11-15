@@ -56,13 +56,26 @@ final class BiomeTab {
         this.compact = compact;
     }
 
-    void setHeader(CompoundTag header) { this.header = header; }
+    void setHeader(CompoundTag header) {
+        this.header = header;
+        this.filter = normalize(filter);
+    }
 
-    void setRows(List<CompoundTag> rows) { this.rows = parseRows(rows); }
+    void setRows(List<CompoundTag> rows) { this.rows = parseRows(rows, solo()); }
+
+    boolean solo() { return header.getBoolean("solo"); }
+
+    /** The filter buttons for this run: All / Available / Caught for solo runs, today's four otherwise. */
+    List<Filter> filters() {
+        return solo() ? List.of(Filter.ALL, Filter.AVAILABLE, Filter.CAUGHT)
+                : List.of(Filter.ALL, Filter.AVAILABLE, Filter.WAITING, Filter.LINKED);
+    }
+
+    private Filter normalize(Filter value) { return filters().contains(value) ? value : Filter.ALL; }
 
     Filter filter() { return filter; }
 
-    void setFilter(Filter filter) { this.filter = filter; }
+    void setFilter(Filter filter) { this.filter = normalize(filter); }
 
     void selectFilter(Filter filter) {
         this.filter = filter;
@@ -76,15 +89,18 @@ final class BiomeTab {
         scroll = 0;
     }
 
-    private static List<Row> parseRows(List<CompoundTag> rows) {
+    private static List<Row> parseRows(List<CompoundTag> rows, boolean solo) {
         return rows.stream().map(tag -> new Row(tag.getString("biome"), tag.getString("theme"),
                 tag.contains("first", Tag.TAG_COMPOUND) ? tag.getCompound("first") : null,
-                tag.contains("second", Tag.TAG_COMPOUND) ? tag.getCompound("second") : null)).toList();
+                !solo && tag.contains("second", Tag.TAG_COMPOUND) ? tag.getCompound("second") : null, solo)).toList();
     }
 
     void applyFilters() {
         clearPortraitFocus.run();
-        portraits.forEach(pair -> { removeWidget.accept(pair.first()); removeWidget.accept(pair.second()); });
+        portraits.forEach(pair -> {
+            removeWidget.accept(pair.first());
+            if (pair.second() != null) removeWidget.accept(pair.second());
+        });
         portraits.clear();
         filtered.clear();
         String needle = query.toLowerCase(Locale.ROOT).strip();
@@ -95,9 +111,12 @@ final class BiomeTab {
                 .forEach(filtered::add);
         for (Row row : filtered) {
             PokemonPortrait first = new PokemonPortrait(row.first(), header.getString("firstName"));
-            PokemonPortrait second = new PokemonPortrait(row.second(), header.getString("secondName"));
             addWidget.accept(first);
-            addWidget.accept(second);
+            PokemonPortrait second = null;
+            if (!row.solo()) {
+                second = new PokemonPortrait(row.second(), header.getString("secondName"));
+                addWidget.accept(second);
+            }
             portraits.add(new PortraitPair(first, second));
         }
         scroll = Math.min(scroll, maxScroll());
@@ -130,16 +149,20 @@ final class BiomeTab {
             int x = left + 14 + i % columns * (cardWidth + GAP);
             int y = contentTop + i / columns * (cardHeight + GAP) - (int) scroll;
             PortraitPair pair = portraits.get(i);
-            pair.first().setWidth(size);
-            pair.second().setWidth(size);
-            pair.first().setHeight(size);
-            pair.second().setHeight(size);
-            pair.first().setX(x + cardWidth / 4 - size / 2);
-            pair.second().setX(x + cardWidth * 3 / 4 - size / 2);
-            pair.first().setY(y + portraitY);
-            pair.second().setY(y + portraitY);
             boolean visible = y + portraitY >= contentTop && y + portraitY + size <= contentBottom;
+            pair.first().setWidth(size);
+            pair.first().setHeight(size);
+            pair.first().setY(y + portraitY);
             pair.first().visible = visible;
+            if (pair.second() == null) {
+                pair.first().setX(x + cardWidth / 2 - size / 2);
+                continue;
+            }
+            pair.first().setX(x + cardWidth / 4 - size / 2);
+            pair.second().setWidth(size);
+            pair.second().setHeight(size);
+            pair.second().setX(x + cardWidth * 3 / 4 - size / 2);
+            pair.second().setY(y + portraitY);
             pair.second().visible = visible;
         }
     }
@@ -150,7 +173,10 @@ final class BiomeTab {
     }
 
     void tick() {
-        portraits.forEach(pair -> { pair.first().tick(); pair.second().tick(); });
+        portraits.forEach(pair -> {
+            pair.first().tick();
+            if (pair.second() != null) pair.second().tick();
+        });
     }
 
     boolean isEmpty() { return filtered.isEmpty(); }
@@ -188,11 +214,18 @@ final class BiomeTab {
         graphics.renderOutline(x, y, cardWidth, cardHeight, 0xFF82A3AA);
         graphics.drawString(font, fit(row.name().getString(), cardWidth - 16), x + 8, y + 7, 0xFFF7FBF8, true);
         graphics.drawString(font, row.status().label, x + 8, y + 19, row.status().color, true);
-        graphics.drawCenteredString(font, row.status() == Filter.LINKED ? "↔" : "·", x + cardWidth / 2,
-                y + portraitBandTop() + portraitBandHeight() / 2 - 4,
-                row.status().color);
+        if (!row.solo()) {
+            graphics.drawCenteredString(font, row.status() == Filter.LINKED ? "↔" : "·", x + cardWidth / 2,
+                    y + portraitBandTop() + portraitBandHeight() / 2 - 4,
+                    row.status().color);
+        }
         if (compact) return;
         int labelY = y + cardHeight - FOOTER_LABEL_OFFSET;
+        if (row.solo()) {
+            graphics.drawCenteredString(font, fit(header.getString("firstName"), cardWidth - 16),
+                    x + cardWidth / 2, labelY, SoulLinkColors.TEXT);
+            return;
+        }
         graphics.drawCenteredString(font, fit(header.getString("firstName"), cardWidth / 2 - 12),
                 x + cardWidth / 4, labelY, SoulLinkColors.TEXT);
         graphics.drawCenteredString(font, fit(header.getString("secondName"), cardWidth / 2 - 12),
@@ -255,17 +288,22 @@ final class BiomeTab {
         return false;
     }
 
+    /** {@code second} is null for solo-run cards. */
     private record PortraitPair(PokemonPortrait first, PokemonPortrait second) { }
 
-    private record Row(String id, String theme, CompoundTag first, CompoundTag second) {
+    private record Row(String id, String theme, CompoundTag first, CompoundTag second, boolean solo) {
         Component name() { return BiomeNames.display(id); }
-        Filter status() { return first != null && second != null ? Filter.LINKED
-                : first != null || second != null ? Filter.WAITING : Filter.AVAILABLE; }
+        Filter status() {
+            if (solo) return first != null ? Filter.CAUGHT : Filter.AVAILABLE;
+            return first != null && second != null ? Filter.LINKED
+                    : first != null || second != null ? Filter.WAITING : Filter.AVAILABLE;
+        }
     }
 
     enum Filter {
         ALL("All", SoulLinkColors.TEXT), AVAILABLE("Available", SoulLinkColors.TEXT),
-        WAITING("Waiting", SoulLinkColors.GOLD), LINKED("Linked", SoulLinkColors.TEAL);
+        WAITING("Waiting", SoulLinkColors.GOLD), LINKED("Linked", SoulLinkColors.TEAL),
+        CAUGHT("Caught", SoulLinkColors.TEAL);
         final String label;
         final int color;
         Filter(String label, int color) { this.label = label; this.color = color; }

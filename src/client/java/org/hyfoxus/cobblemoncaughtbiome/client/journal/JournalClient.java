@@ -23,7 +23,10 @@ public final class JournalClient {
     private JournalClient() { }
 
     public static void initialize() {
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            reset();
+            BiomeJournalScreen.clearPendingLogs();
+        });
         ClientPlayNetworking.registerGlobalReceiver(JournalPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     if (context.client().getConnection() == null) return;
@@ -39,9 +42,11 @@ public final class JournalClient {
                     if (nextChunk == data.getInt("chunks")) {
                         boolean forceOpen = data.getBoolean("forceOpen");
                         var screen = context.client().screen;
+                        // Live (non-forced) pushes only refresh an open biome view; they never pull the
+                        // player out of the Runs view. Forced payloads open or replace the screen.
                         if (screen instanceof BiomeJournalScreen bjs && bjs.isBiomeMode()) {
                             bjs.update(data, List.copyOf(rows));
-                        } else if (forceOpen || screen instanceof BiomeJournalScreen) {
+                        } else if (forceOpen) {
                             context.client().setScreen(new BiomeJournalScreen(data, List.copyOf(rows)));
                         }
                         reset();
@@ -53,9 +58,11 @@ public final class JournalClient {
                     CompoundTag data = payload.data();
                     boolean forceOpen = data.getBoolean("forceOpen");
                     var screen = context.client().screen;
-                    if (screen instanceof BiomeJournalScreen bjs && bjs.isInviteMode()) {
+                    // Live (non-forced) pushes only refresh an open Runs view; they never pull the
+                    // player out of the biome view. Forced payloads open or replace the screen.
+                    if (screen instanceof BiomeJournalScreen bjs && bjs.isRunsMode()) {
                         bjs.updateOnline(data);
-                    } else if (forceOpen || screen instanceof BiomeJournalScreen) {
+                    } else if (forceOpen) {
                         context.client().setScreen(new BiomeJournalScreen(data));
                     }
                 }));

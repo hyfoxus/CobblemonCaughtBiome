@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import org.hyfoxus.cobblemoncaughtbiome.soullink.SoulLinkColors;
 
@@ -16,8 +17,10 @@ public final class BiomeJournalScreen extends Screen {
     private final Mode mode;
     private BiomeTab biomeTab;
     private LogsTab logsTab;
-    private InviteTab inviteTab;
+    private RunsTab runsTab;
     private ContentTab tab = ContentTab.BIOMES;
+    // Set by the Runs view's Logs button: the next biome screen opened from a journal payload starts on Logs.
+    private static boolean openLogsNext;
     private CompoundTag header;
     private CompoundTag online;
     private EditBox search;
@@ -27,7 +30,7 @@ public final class BiomeJournalScreen extends Screen {
     private int refreshTicks;
     private int endConfirmTicks;
 
-    private enum Mode { BIOME, INVITE }
+    private enum Mode { BIOME, RUNS }
     private enum ContentTab { BIOMES, LOGS }
 
     public BiomeJournalScreen(CompoundTag header, List<CompoundTag> rows) {
@@ -40,19 +43,27 @@ public final class BiomeJournalScreen extends Screen {
         biomeTab.setRows(rows);
         biomeTab.setFilter(BiomeTab.Filter.parse(header.getString("filter")));
         this.initialPage = Math.max(1, header.getInt("page"));
+        if (openLogsNext) {
+            openLogsNext = false;
+            tab = ContentTab.LOGS;
+        }
     }
 
     public BiomeJournalScreen(CompoundTag online) {
-        super(Component.literal("Soul Link · Invite"));
-        this.mode = Mode.INVITE;
-        this.inviteTab = new InviteTab(this::addRenderableWidget, this::removeWidget, this::sendCommand);
+        super(Component.literal("Soul Link · Runs"));
+        this.mode = Mode.RUNS;
+        this.runsTab = new RunsTab(this::addRenderableWidget, this::removeWidget, this::sendCommand);
         this.online = online.copy();
-        inviteTab.setData(this.online);
+        runsTab.setData(this.online);
     }
 
-    boolean isInviteMode() { return mode == Mode.INVITE; }
+    boolean isRunsMode() { return mode == Mode.RUNS; }
 
     boolean isBiomeMode() { return mode == Mode.BIOME; }
+
+    static void clearPendingLogs() { openLogsNext = false; }
+
+    private boolean hasSelectedRun() { return online != null && online.contains("selected", Tag.TAG_STRING); }
 
     void update(CompoundTag header, List<CompoundTag> rows) {
         this.header = header.copy();
@@ -63,9 +74,13 @@ public final class BiomeJournalScreen extends Screen {
     }
 
     void updateOnline(CompoundTag online) {
+        boolean hadSelected = hasSelectedRun();
         this.online = online.copy();
-        inviteTab.setData(this.online);
-        inviteTab.rebuildWidgets();
+        // A Logs request that fell back to this view (nothing selected) must not linger.
+        if (!hasSelectedRun()) openLogsNext = false;
+        runsTab.setData(this.online);
+        if (hadSelected != hasSelectedRun()) rebuildWidgets();
+        else runsTab.rebuildWidgets();
     }
 
     void updateLogs(List<String> entries) {
@@ -93,9 +108,11 @@ public final class BiomeJournalScreen extends Screen {
         if (mode == Mode.BIOME) {
             contentTop = compact ? 88 : 108;
             contentBottom = Math.max(contentTop + 32, height - (compact ? 23 : 34));
-            addRenderableWidget(new JournalButton(left + 14, compact ? 31 : 50, 50, Component.literal("Biomes"),
+            addRenderableWidget(new JournalButton(left + 14, compact ? 31 : 50, 44, Component.literal("Runs"), false,
+                    button -> sendCommand("soullink online")));
+            addRenderableWidget(new JournalButton(left + 62, compact ? 31 : 50, 50, Component.literal("Biomes"),
                     tab == ContentTab.BIOMES, button -> { tab = ContentTab.BIOMES; rebuildWidgets(); }));
-            addRenderableWidget(new JournalButton(left + 68, compact ? 31 : 50, 50, Component.literal("Logs"),
+            addRenderableWidget(new JournalButton(left + 116, compact ? 31 : 50, 50, Component.literal("Logs"),
                     tab == ContentTab.LOGS, button -> { tab = ContentTab.LOGS; sendCommand("soullink logs"); rebuildWidgets(); }));
             addRenderableWidget(new JournalButton(left + panelWidth - 262, compact ? 31 : 50, 74,
                     Component.literal(header.getBoolean("paused") ? "Resume" : "Pause"), false,
@@ -122,8 +139,8 @@ public final class BiomeJournalScreen extends Screen {
                 cardWidth = (panelWidth - 28 - GAP * (columns - 1)) / columns;
                 biomeTab.setFont(font);
                 biomeTab.setLayout(left, panelWidth, contentTop, contentBottom, columns, cardWidth, cardHeight, compact);
-                search = new EditBox(font, left + 130, compact ? 36 : 55,
-                        Math.max(30, panelWidth - 392), 18, Component.literal("Search biomes"));
+                search = new EditBox(font, left + 178, compact ? 36 : 55,
+                        Math.max(30, panelWidth - 440), 18, Component.literal("Search biomes"));
                 search.setBordered(false);
                 search.setTextColor(SoulLinkColors.TEXT);
                 search.setHint(Component.literal("Search biomes…"));
@@ -131,9 +148,11 @@ public final class BiomeJournalScreen extends Screen {
                 search.setValue(biomeTab.query());
                 search.setResponder(value -> { biomeTab.setQuery(value); applyFilters(); });
                 addRenderableWidget(search);
-                int tabWidth = (panelWidth - 28 - GAP * 3) / 4;
-                for (BiomeTab.Filter value : BiomeTab.Filter.values()) {
-                    addRenderableWidget(new JournalButton(left + 14 + value.ordinal() * (tabWidth + GAP), compact ? 59 : 79, tabWidth,
+                List<BiomeTab.Filter> filters = biomeTab.filters();
+                int tabWidth = (panelWidth - 28 - GAP * (filters.size() - 1)) / filters.size();
+                for (int i = 0; i < filters.size(); i++) {
+                    BiomeTab.Filter value = filters.get(i);
+                    addRenderableWidget(new JournalButton(left + 14 + i * (tabWidth + GAP), compact ? 59 : 79, tabWidth,
                             Component.literal(value.label), biomeTab.filter() == value, button -> {
                                 biomeTab.selectFilter(value);
                                 rebuildWidgets();
@@ -151,13 +170,25 @@ public final class BiomeJournalScreen extends Screen {
         } else {
             contentTop = compact ? 60 : 80;
             contentBottom = Math.max(contentTop + 32, height - (compact ? 23 : 34));
-            inviteTab.setFont(font);
-            inviteTab.setLayout(left, panelWidth, contentTop, contentBottom);
+            runsTab.setFont(font);
+            runsTab.setLayout(left, panelWidth, contentTop, contentBottom);
+            addRenderableWidget(new JournalButton(left + 14, compact ? 31 : 50, 44, Component.literal("Runs"), true,
+                    button -> refreshOnline()));
+            if (hasSelectedRun()) {
+                addRenderableWidget(new JournalButton(left + 62, compact ? 31 : 50, 50, Component.literal("Biomes"), false,
+                        button -> sendCommand("soullink menu")));
+                addRenderableWidget(new JournalButton(left + 116, compact ? 31 : 50, 50, Component.literal("Logs"), false,
+                        button -> {
+                            openLogsNext = true;
+                            sendCommand("soullink menu");
+                            sendCommand("soullink logs");
+                        }));
+            }
             addRenderableWidget(new JournalButton(left + panelWidth - 128, compact ? 31 : 50, 66, Component.literal("Refresh"), false,
                     button -> refreshOnline()));
             addRenderableWidget(new JournalButton(left + panelWidth - 58, compact ? 31 : 50, 44, Component.literal("Close"), false,
                     button -> onClose()));
-            inviteTab.rebuildWidgets();
+            runsTab.rebuildWidgets();
         }
     }
 
@@ -169,8 +200,10 @@ public final class BiomeJournalScreen extends Screen {
     private void refresh() {
         if (minecraft != null && minecraft.getConnection() != null && refreshTicks == 0) {
             refreshTicks = 100;
+            // The server has no "caught" filter; filtering is client-side and update() keeps the current filter.
+            BiomeTab.Filter filter = biomeTab.filter() == BiomeTab.Filter.CAUGHT ? BiomeTab.Filter.ALL : biomeTab.filter();
             String command = tab == ContentTab.BIOMES
-                    ? "soullink biomes " + biomeTab.filter().name().toLowerCase(Locale.ROOT) : "soullink logs";
+                    ? "soullink biomes " + filter.name().toLowerCase(Locale.ROOT) : "soullink logs";
             minecraft.getConnection().sendCommand(command);
         }
     }
@@ -190,7 +223,7 @@ public final class BiomeJournalScreen extends Screen {
             if (endConfirmTicks == 0) rebuildWidgets();
         }
         if (mode == Mode.BIOME && tab == ContentTab.BIOMES) biomeTab.tick();
-        if (mode == Mode.INVITE) inviteTab.tick();
+        if (mode == Mode.RUNS) runsTab.tick();
     }
 
     @Override
@@ -203,7 +236,7 @@ public final class BiomeJournalScreen extends Screen {
             if (tab == ContentTab.BIOMES) biomeTab.renderCardBackgrounds(graphics);
             else logsTab.renderBackgrounds(graphics);
         } else {
-            inviteTab.renderBackgrounds(graphics);
+            runsTab.renderBackgrounds(graphics);
         }
         // text drawn before super.render() comes out blurry on this screen, so everything else goes after
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -212,9 +245,7 @@ public final class BiomeJournalScreen extends Screen {
         if (mode == Mode.BIOME) {
             graphics.drawString(font, fit("SOUL LINK  /  BIOME JOURNAL", panelWidth - 28), left + 14,
                     compact ? 12 : 18, SoulLinkColors.TEAL, false);
-            String names = header.getString("firstName") + "  ↔  " + header.getString("secondName")
-                    + (header.getBoolean("paused") ? "  ·  Paused" : "  ·  Active");
-            graphics.drawString(font, fit(names, panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
+            graphics.drawString(font, fit(headerLine(), panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
             if (tab == ContentTab.BIOMES) {
                 biomeTab.renderScrollbar(graphics);
                 biomeTab.renderCardLabels(graphics);
@@ -222,7 +253,9 @@ public final class BiomeJournalScreen extends Screen {
                     graphics.drawCenteredString(font, fit("No biomes match your search or filter.", panelWidth - 28), width / 2,
                             contentTop + 14, SoulLinkColors.TEXT);
                 }
-                String counts = "Available " + biomeTab.count(BiomeTab.Filter.AVAILABLE) + "   ·   Waiting " + biomeTab.count(BiomeTab.Filter.WAITING)
+                String counts = biomeTab.solo()
+                        ? "Available " + biomeTab.count(BiomeTab.Filter.AVAILABLE) + "   ·   Caught " + biomeTab.count(BiomeTab.Filter.CAUGHT)
+                        : "Available " + biomeTab.count(BiomeTab.Filter.AVAILABLE) + "   ·   Waiting " + biomeTab.count(BiomeTab.Filter.WAITING)
                         + "   ·   Linked " + biomeTab.count(BiomeTab.Filter.LINKED);
                 graphics.drawString(font, fit(counts, panelWidth - 28), left + 14, height - 25, SoulLinkColors.TEXT, false);
             } else {
@@ -230,10 +263,28 @@ public final class BiomeJournalScreen extends Screen {
                 logsTab.renderLabels(graphics);
             }
         } else {
-            graphics.drawString(font, fit("SOUL LINK  /  INVITE", panelWidth - 28), left + 14,
+            graphics.drawString(font, fit("SOUL LINK  /  RUNS", panelWidth - 28), left + 14,
                     compact ? 12 : 18, SoulLinkColors.TEAL, false);
-            inviteTab.renderLabels(graphics);
+            String selected = runsTab.selectedTitle();
+            String line = selected != null ? "Selected: " + selected : "Free play  ·  no run selected";
+            graphics.drawString(font, fit(line, panelWidth - 28), left + 14, compact ? 24 : 33, SoulLinkColors.TEXT, false);
+            runsTab.renderScrollbar(graphics);
+            runsTab.renderLabels(graphics);
         }
+    }
+
+    /** Solo: "<player>  ·  <run title>  ·  Active"; shared: today's "<first>  ↔  <second>  ·  Active", led by the
+     *  run title only when it differs from the default "<first> & <second>". */
+    private String headerLine() {
+        String first = header.getString("firstName");
+        String title = header.getString("runTitle");
+        String state = header.getBoolean("paused") ? "  ·  Paused" : "  ·  Active";
+        if (header.getBoolean("solo")) {
+            return first + "  ·  " + (title.isEmpty() ? "Solo" : title) + state;
+        }
+        String second = header.getString("secondName");
+        String names = first + "  ↔  " + second + state;
+        return title.isEmpty() || title.equals(first + " & " + second) ? names : title + "  ·  " + names;
     }
 
     private String fit(String text, int maxWidth) {
@@ -247,7 +298,7 @@ public final class BiomeJournalScreen extends Screen {
             handled = tab == ContentTab.BIOMES ? biomeTab.mouseScrolled(mouseX, mouseY, vertical)
                     : logsTab.mouseScrolled(mouseX, mouseY, vertical);
         } else {
-            handled = inviteTab.mouseScrolled(mouseX, mouseY, vertical);
+            handled = runsTab.mouseScrolled(mouseX, mouseY, vertical);
         }
         if (handled) return true;
         return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
