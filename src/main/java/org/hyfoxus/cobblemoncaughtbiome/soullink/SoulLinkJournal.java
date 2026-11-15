@@ -133,7 +133,9 @@ final class SoulLinkJournal {
         for (Capture capture : run.captures) {
             Pokemon pokemon = storage.getParty(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
             if (pokemon == null) pokemon = storage.getPC(capture.player(), viewer.server.registryAccess()).get(capture.pokemon());
-            if (pokemon != null) RunLabel.stampIfAbsent(pokemon.getPersistentData(), run.id, run.title);
+            // persistentData changes alone do not mark the store dirty, so a new stamp needs onChange to be saved.
+            if (pokemon != null && RunLabel.stampIfAbsent(pokemon.getPersistentData(), run.id, run.title))
+                pokemon.onChange(null);
         }
     }
 

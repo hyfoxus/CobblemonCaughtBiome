@@ -190,6 +190,8 @@ public final class SoulLinkManager {
                 pokemon.getSpecies().getResourceIdentifier().toString(), pokemon.getAspects());
         run.captures.add(capture);
         RunLabel.store(pokemon.getPersistentData(), run.id, run.title);
+        // Marks the owning store dirty so the stamp is saved; it does not re-send the Pokémon to the client.
+        pokemon.onChange(null);
         run.log.add(formatLogEntry(capture.name() + " was caught in "
                 + BiomeNames.display(biome.toString()).getString() + "."));
         data.setDirty();

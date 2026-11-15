@@ -3,6 +3,7 @@ package org.hyfoxus.cobblemoncaughtbiome.mixin.client;
 import com.cobblemon.mod.common.client.gui.summary.widgets.screens.info.InfoWidget;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import org.hyfoxus.cobblemoncaughtbiome.CaughtBiome;
@@ -20,6 +21,9 @@ public abstract class InfoWidgetMixin {
     private static final int X_OFFSET = 8;
     private static final int Y_OFFSET = 131;
     private static final int LINE_GAP = 10;
+    /** Room left of "To Next Level" (x+72.5 px), in the half-scale units the lines are drawn in. */
+    private static final int MAX_WIDTH = 125;
+    private static final String ELLIPSIS = "…";
 
     @Shadow(remap = false)
     @Final
@@ -30,16 +34,23 @@ public abstract class InfoWidgetMixin {
         AbstractWidget panel = (AbstractWidget) (Object) this;
         int x = (int) ((panel.getX() + X_OFFSET) / SCALE);
         int y = (int) ((panel.getY() + Y_OFFSET) / SCALE);
+        Font font = Minecraft.getInstance().font;
 
         graphics.pose().pushPose();
         try {
             graphics.pose().scale(SCALE, SCALE, 1F);
-            graphics.drawString(Minecraft.getInstance().font,
+            graphics.drawString(font,
                     CaughtBiome.display(pokemon.getPersistentData()), x, y, 0xFFFFFF, true);
             RunLabel.display(pokemon.getPersistentData()).ifPresent(run ->
-                    graphics.drawString(Minecraft.getInstance().font, run, x, y + LINE_GAP, 0xFFFFFF, true));
+                    graphics.drawString(font, fitWidth(font, run.getString()), x, y + LINE_GAP, 0xFFFFFF, true));
         } finally {
             graphics.pose().popPose();
         }
+    }
+
+    /** Trims text to MAX_WIDTH scaled units so it stays clear of Cobblemon's "To Next Level" column. */
+    private static String fitWidth(Font font, String text) {
+        if (font.width(text) <= MAX_WIDTH) return text;
+        return font.plainSubstrByWidth(text, MAX_WIDTH - font.width(ELLIPSIS)) + ELLIPSIS;
     }
 }
