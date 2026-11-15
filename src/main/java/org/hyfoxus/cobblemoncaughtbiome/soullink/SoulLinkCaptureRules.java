@@ -43,7 +43,7 @@ final class SoulLinkCaptureRules {
     }
 
     private static boolean allowCapture(ServerPlayer player, Pokemon pokemon, EmptyPokeBallEntity ball) {
-        Run run = SoulLinkData.get(player.server).findRun(player.getUUID());
+        Run run = SoulLinkData.get(player.server).activeRun(player.getUUID());
         if (run == null || run.paused || pokemon.getShiny()) {
             RESERVATIONS.remove(ball.getUUID());
             return true;
@@ -73,7 +73,7 @@ final class SoulLinkCaptureRules {
 
     static Optional<ResourceLocation> finishCapture(ServerPlayer player, Pokemon pokemon, EmptyPokeBallEntity ball) {
         Reservation reservation = RESERVATIONS.remove(ball.getUUID());
-        Run run = SoulLinkData.get(player.server).findRun(player.getUUID());
+        Run run = SoulLinkData.get(player.server).activeRun(player.getUUID());
         if (run == null || run.paused || pokemon.getShiny() || reservation == null
                 || reservation.run() != run || !reservation.player().equals(player.getUUID())) {
             return Optional.empty();

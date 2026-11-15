@@ -80,7 +80,7 @@ final class SoulLinkCommands {
 
     private static int status(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        Run run = SoulLinkData.get(source.getServer()).findRun(player.getUUID());
+        Run run = SoulLinkData.get(source.getServer()).activeRun(player.getUUID());
         if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
         SoulLinkManager.message(player, (run.paused ? "Paused" : "Active") + " — Partner: "
                 + run.name(run.partner(player.getUUID())));

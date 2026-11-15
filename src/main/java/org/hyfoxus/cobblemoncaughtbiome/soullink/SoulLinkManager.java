@@ -45,7 +45,7 @@ public final class SoulLinkManager {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
             SoulLinkData data = SoulLinkData.get(server);
-            Run run = data.findRun(player.getUUID());
+            Run run = data.activeRun(player.getUUID());
             if (run != null) {
                 if (run.first.equals(player.getUUID())) run.firstName = player.getGameProfile().getName();
                 else run.secondName = player.getGameProfile().getName();
@@ -73,7 +73,7 @@ public final class SoulLinkManager {
     static boolean invite(ServerPlayer inviter, ServerPlayer target) {
         SoulLinkData data = SoulLinkData.get(inviter.server);
         if (inviter.getUUID().equals(target.getUUID())) return error(inviter, "You cannot invite yourself.");
-        if (data.findRun(inviter.getUUID()) != null || data.findRun(target.getUUID()) != null)
+        if (data.activeRun(inviter.getUUID()) != null || data.activeRun(target.getUUID()) != null)
             return error(inviter, "One of you is already in a Soul Link run.");
         Invitation existing = INVITATIONS.get(target.getUUID());
         if (existing != null && existing.expiresAt() > inviter.server.getTickCount())
@@ -112,11 +112,10 @@ public final class SoulLinkManager {
         ServerPlayer inviter = player.server.getPlayerList().getPlayer(invite.inviter());
         if (inviter == null) return error(player, "The inviting player must be online.");
         SoulLinkData data = SoulLinkData.get(player.server);
-        if (data.findRun(player.getUUID()) != null || data.findRun(inviter.getUUID()) != null)
+        if (data.activeRun(player.getUUID()) != null || data.activeRun(inviter.getUUID()) != null)
             return error(player, "One of you is already in a Soul Link run.");
-        Run run = new Run(inviter.getUUID(), inviter.getGameProfile().getName(),
+        Run run = data.createShared(inviter.getUUID(), inviter.getGameProfile().getName(),
                 player.getUUID(), player.getGameProfile().getName());
-        data.runs.add(run);
         run.log.add(formatLogEntry(inviter.getGameProfile().getName() + " and "
                 + player.getGameProfile().getName() + " started a Soul Link run."));
         data.setDirty();
@@ -144,7 +143,7 @@ public final class SoulLinkManager {
 
     private static void recordCapture(ServerPlayer player, Pokemon pokemon, ResourceLocation biome) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.findRun(player.getUUID());
+        Run run = data.activeRun(player.getUUID());
         if (run == null || run.paused || pokemon.getShiny()
                 || run.capture(player.getUUID(), biome.toString()) != null) return;
         // A released and recaptured Pokémon must not become its own partner.
@@ -226,10 +225,10 @@ public final class SoulLinkManager {
 
     static void end(ServerPlayer player) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.findRun(player.getUUID());
+        Run run = data.activeRun(player.getUUID());
         if (run == null) { error(player, "You are not in a Soul Link run."); return; }
         run.log.add(formatLogEntry("Run ended."));
-        data.runs.remove(run);
+        data.remove(run);
         SoulLinkCaptureRules.clearRun(run);
         data.setDirty();
         String text = "[Soul Link] " + player.getGameProfile().getName() + " ended your Soul Link run.";
@@ -241,7 +240,7 @@ public final class SoulLinkManager {
 
     static boolean setPaused(ServerPlayer player, boolean paused) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.findRun(player.getUUID());
+        Run run = data.activeRun(player.getUUID());
         if (run == null) return error(player, "You are not in a Soul Link run.");
         if (run.paused == paused) return error(player, "Your Soul Link run is already "
                 + (paused ? "paused." : "active."));
@@ -261,7 +260,7 @@ public final class SoulLinkManager {
 
     private static void pushRefresh(ServerPlayer player) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        if (data.findRun(player.getUUID()) != null) {
+        if (data.activeRun(player.getUUID()) != null) {
             SoulLinkJournal.open(player, "all", 1, false);
             SoulLinkJournal.openLogs(player);
         } else {

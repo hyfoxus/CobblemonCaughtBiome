@@ -33,7 +33,7 @@ final class SoulLinkJournal {
 
     static int openLogs(ServerPlayer player) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.findRun(player.getUUID());
+        Run run = data.activeRun(player.getUUID());
         if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
         if (!ServerPlayNetworking.canSend(player, SoulLinkLogPayload.TYPE)) {
             SoulLinkManager.message(player, "Install the matching client mod to open the Soul Link log.");
@@ -57,13 +57,13 @@ final class SoulLinkJournal {
     }
 
     static int openMenu(ServerPlayer player) {
-        return SoulLinkData.get(player.server).findRun(player.getUUID()) != null
+        return SoulLinkData.get(player.server).activeRun(player.getUUID()) != null
                 ? open(player, "all", 1, true) : SoulLinkMenu.openOnline(player, true);
     }
 
     static int open(ServerPlayer player, String filter, int page, boolean forceOpen) {
         SoulLinkData data = SoulLinkData.get(player.server);
-        Run run = data.findRun(player.getUUID());
+        Run run = data.activeRun(player.getUUID());
         if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
         if (!ServerPlayNetworking.canSend(player, JournalPayload.TYPE)) {
             if (forceOpen) SoulLinkManager.message(player, "Install the matching client mod to open the biome journal.");
