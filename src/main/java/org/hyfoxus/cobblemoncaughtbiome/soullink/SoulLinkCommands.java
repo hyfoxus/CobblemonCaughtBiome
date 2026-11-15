@@ -38,7 +38,7 @@ final class SoulLinkCommands {
                                 SoulLinkManager.setPaused(context.getSource().getPlayerOrException(), false) ? 1 : 0))
                         .then(biomeCommand())
                         .then(Commands.literal("online").executes(context ->
-                                SoulLinkMenu.openOnline(context.getSource().getPlayerOrException())))
+                                SoulLinkMenu.openOnline(context.getSource().getPlayerOrException(), true)))
                         .then(Commands.literal("logs").executes(context ->
                                 SoulLinkJournal.openLogs(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("menu").executes(context ->
@@ -112,7 +112,7 @@ final class SoulLinkCommands {
     }
 
     private static int biomes(CommandSourceStack source, int page, BiomeFilter filter) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        return SoulLinkJournal.open(source.getPlayerOrException(), filter.name().toLowerCase(Locale.ROOT), page);
+        return SoulLinkJournal.open(source.getPlayerOrException(), filter.name().toLowerCase(Locale.ROOT), page, true);
     }
 
     private enum BiomeFilter { ALL, AVAILABLE, WAITING, LINKED }

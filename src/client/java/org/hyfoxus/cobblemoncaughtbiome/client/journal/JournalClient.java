@@ -37,9 +37,14 @@ public final class JournalClient {
                     for (Tag row : data.getList("rows", Tag.TAG_COMPOUND)) rows.add(((CompoundTag) row).copy());
                     nextChunk++;
                     if (nextChunk == data.getInt("chunks")) {
-                        if (context.client().screen instanceof BiomeJournalScreen screen && screen.isBiomeMode()) {
-                            screen.update(data, List.copyOf(rows));
-                        } else {
+                        // forceOpen means an explicit command/keybind: always show it. Otherwise this is a
+                        // passive background push - only update an already-open Soul Link screen (switching
+                        // it into Biome mode if it was showing Invite), never interrupt anything else.
+                        boolean forceOpen = data.getBoolean("forceOpen");
+                        var screen = context.client().screen;
+                        if (screen instanceof BiomeJournalScreen bjs && bjs.isBiomeMode()) {
+                            bjs.update(data, List.copyOf(rows));
+                        } else if (forceOpen || screen instanceof BiomeJournalScreen) {
                             context.client().setScreen(new BiomeJournalScreen(data, List.copyOf(rows)));
                         }
                         reset();
@@ -49,9 +54,11 @@ public final class JournalClient {
                 context.client().execute(() -> {
                     if (context.client().getConnection() == null) return;
                     CompoundTag data = payload.data();
-                    if (context.client().screen instanceof BiomeJournalScreen screen && screen.isInviteMode()) {
-                        screen.updateOnline(data);
-                    } else {
+                    boolean forceOpen = data.getBoolean("forceOpen");
+                    var screen = context.client().screen;
+                    if (screen instanceof BiomeJournalScreen bjs && bjs.isInviteMode()) {
+                        bjs.updateOnline(data);
+                    } else if (forceOpen || screen instanceof BiomeJournalScreen) {
                         context.client().setScreen(new BiomeJournalScreen(data));
                     }
                 }));

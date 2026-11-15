@@ -16,12 +16,13 @@ final class SoulLinkMenu {
         PayloadTypeRegistry.playS2C().register(SoulLinkOnlinePayload.TYPE, SoulLinkOnlinePayload.CODEC);
     }
 
-    static int openOnline(ServerPlayer player) {
+    static int openOnline(ServerPlayer player, boolean forceOpen) {
         if (!ServerPlayNetworking.canSend(player, SoulLinkOnlinePayload.TYPE)) {
-            SoulLinkManager.message(player, "Install the matching client mod to open the Soul Link menu.");
+            if (forceOpen) SoulLinkManager.message(player, "Install the matching client mod to open the Soul Link menu.");
             return 0;
         }
         CompoundTag tag = new CompoundTag();
+        tag.putBoolean("forceOpen", forceOpen);
         ListTag players = new ListTag();
         player.server.getPlayerList().getPlayers().stream()
                 .filter(online -> online != player)

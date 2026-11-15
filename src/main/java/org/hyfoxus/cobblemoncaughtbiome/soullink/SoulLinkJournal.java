@@ -58,15 +58,15 @@ final class SoulLinkJournal {
 
     static int openMenu(ServerPlayer player) {
         return SoulLinkData.get(player.server).findRun(player.getUUID()) != null
-                ? open(player, "all", 1) : SoulLinkMenu.openOnline(player);
+                ? open(player, "all", 1, true) : SoulLinkMenu.openOnline(player, true);
     }
 
-    static int open(ServerPlayer player, String filter, int page) {
+    static int open(ServerPlayer player, String filter, int page, boolean forceOpen) {
         SoulLinkData data = SoulLinkData.get(player.server);
         Run run = data.findRun(player.getUUID());
         if (run == null) { SoulLinkManager.message(player, "You are not in a Soul Link run."); return 0; }
         if (!ServerPlayNetworking.canSend(player, JournalPayload.TYPE)) {
-            SoulLinkManager.message(player, "Install the matching client mod to open the biome journal.");
+            if (forceOpen) SoulLinkManager.message(player, "Install the matching client mod to open the biome journal.");
             return 0;
         }
         backfillPortraits(player, data, run);
@@ -88,6 +88,7 @@ final class SoulLinkJournal {
             tag.putBoolean("paused", run.paused);
             tag.putString("filter", filter);
             tag.putInt("page", page);
+            tag.putBoolean("forceOpen", forceOpen);
             ListTag rows = new ListTag();
             for (int i = chunk * ROWS_PER_CHUNK; i < Math.min(biomes.size(), (chunk + 1) * ROWS_PER_CHUNK); i++) {
                 String biome = biomes.get(i).toString();

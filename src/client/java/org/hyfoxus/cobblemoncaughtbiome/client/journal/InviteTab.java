@@ -63,14 +63,25 @@ final class InviteTab {
         return Math.max(0, players.size() * (ROW_HEIGHT + GAP) - GAP - (contentBottom - listTop()));
     }
 
+    void tick() {
+        if (pendingInviter == null) return;
+        if (pendingTicksRemaining > 0) pendingTicksRemaining--;
+        if (pendingTicksRemaining <= 0) {
+            pendingInviter = null;
+            rebuildWidgets();
+        }
+    }
+
     void rebuildWidgets() {
         widgets.forEach(removeWidget);
         widgets.clear();
         if (pendingInviter != null) {
             int bannerTop = contentTop;
-            AbstractWidget accept = new JournalButton(left + 14, bannerTop + 28, 90, Component.literal("Accept"), false,
+            int pairWidth = 90 + GAP + 90;
+            int pairLeft = left + panelWidth / 2 - pairWidth / 2;
+            AbstractWidget accept = new JournalButton(pairLeft, bannerTop + 28, 90, Component.literal("Accept"), false,
                     button -> { sendCommand.accept("soullink accept " + pendingToken); sendCommand.accept("soullink menu"); });
-            AbstractWidget decline = new JournalButton(left + 112, bannerTop + 28, 90, Component.literal("Decline"), false,
+            AbstractWidget decline = new JournalButton(pairLeft + 90 + GAP, bannerTop + 28, 90, Component.literal("Decline"), false,
                     button -> { sendCommand.accept("soullink decline " + pendingToken); sendCommand.accept("soullink menu"); });
             addWidget.accept(accept);
             addWidget.accept(decline);
@@ -117,10 +128,10 @@ final class InviteTab {
         if (pendingInviter != null) {
             int y = contentTop;
             graphics.renderOutline(left + 12, y, panelWidth - 24, BANNER_HEIGHT - GAP, 0xFF000000 | SoulLinkColors.GOLD);
-            graphics.drawCenteredString(font, fit(pendingInviter + " invited you to a run", panelWidth - 40),
+            String countdown = Math.max(0, (pendingTicksRemaining + 19) / 20) + "s";
+            graphics.drawString(font, countdown, left + panelWidth - 20 - font.width(countdown), y + 7, SoulLinkColors.TEXT, false);
+            graphics.drawCenteredString(font, fit(pendingInviter + " invited you to a run", panelWidth - 40 - font.width(countdown) * 2),
                     left + panelWidth / 2, y + 7, SoulLinkColors.TEXT);
-            graphics.drawCenteredString(font, "expires in " + (pendingTicksRemaining / 20) + "s",
-                    left + panelWidth / 2, y + BANNER_HEIGHT - GAP - 16, SoulLinkColors.TEXT);
         }
         if (players.isEmpty()) {
             graphics.drawCenteredString(font, "No other players online.", left + panelWidth / 2, listTop() + 10, SoulLinkColors.TEXT);

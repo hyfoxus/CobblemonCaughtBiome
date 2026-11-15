@@ -190,6 +190,7 @@ public final class BiomeJournalScreen extends Screen {
             if (endConfirmTicks == 0) rebuildWidgets();
         }
         if (mode == Mode.BIOME && tab == ContentTab.BIOMES) biomeTab.tick();
+        if (mode == Mode.INVITE) inviteTab.tick();
     }
 
     @Override

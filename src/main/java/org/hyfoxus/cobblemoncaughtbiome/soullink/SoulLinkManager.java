@@ -94,6 +94,9 @@ public final class SoulLinkManager {
             invitePayload.putInt("ticksRemaining", 1200);
             ServerPlayNetworking.send(target, new SoulLinkInvitePayload(invitePayload));
         }
+        // Also push a silent refresh so an already-open Invite view's pending-invite banner
+        // updates in place; the popup above only opens when nothing else is already showing.
+        SoulLinkMenu.openOnline(target, false);
         return true;
     }
 
@@ -124,6 +127,8 @@ public final class SoulLinkManager {
                 || entry.getValue().inviter().equals(inviter.getUUID()));
         message(player, "Soul Link started with " + inviter.getGameProfile().getName() + ".");
         message(inviter, "Soul Link started with " + player.getGameProfile().getName() + ".");
+        pushRefresh(player);
+        pushRefresh(inviter);
         return true;
     }
 
@@ -178,6 +183,8 @@ public final class SoulLinkManager {
             deliver(player.server, data, run.first, text);
             deliver(player.server, data, run.second, text);
         }
+        pushRefresh(player);
+        pushRefresh(player.server, run.partner(player.getUUID()));
     }
 
     private static void notifyFainted(MinecraftServer server, Pokemon pokemon) {
@@ -197,6 +204,8 @@ public final class SoulLinkManager {
                                     .append(SoulLinkMessages.text(" Linked to your "))
                                     .append(SoulLinkMessages.highlight(other.name()))
                                     .append(SoulLinkMessages.text("  ·  ")).append(BiomeNames.display(capture.biome()))));
+                    pushRefresh(server, capture.player());
+                    pushRefresh(server, other.player());
                 }
                 return;
             }
@@ -228,6 +237,8 @@ public final class SoulLinkManager {
         String text = "[Soul Link] " + player.getGameProfile().getName() + " ended your Soul Link run.";
         deliver(player.server, data, run.first, text);
         deliver(player.server, data, run.second, text);
+        pushRefresh(player.server, run.first);
+        pushRefresh(player.server, run.second);
     }
 
     static boolean setPaused(ServerPlayer player, boolean paused) {
@@ -245,7 +256,24 @@ public final class SoulLinkManager {
                 : " resumed your run. Biome capture limits are active again.");
         deliver(player.server, data, run.first, text);
         deliver(player.server, data, run.second, text);
+        pushRefresh(player.server, run.first);
+        pushRefresh(player.server, run.second);
         return true;
+    }
+
+    private static void pushRefresh(ServerPlayer player) {
+        SoulLinkData data = SoulLinkData.get(player.server);
+        if (data.findRun(player.getUUID()) != null) {
+            SoulLinkJournal.open(player, "all", 1, false);
+            SoulLinkJournal.openLogs(player);
+        } else {
+            SoulLinkMenu.openOnline(player, false);
+        }
+    }
+
+    private static void pushRefresh(MinecraftServer server, UUID playerId) {
+        ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+        if (player != null) pushRefresh(player);
     }
 
     static void message(ServerPlayer player, String text) {

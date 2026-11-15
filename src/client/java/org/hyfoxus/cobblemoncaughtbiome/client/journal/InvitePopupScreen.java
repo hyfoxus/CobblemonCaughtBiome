@@ -12,6 +12,7 @@ public final class InvitePopupScreen extends Screen {
     private static final int PANEL_HEIGHT = 50;
     private static final int OPTION_WIDTH = 90;
     private static final int OPTION_HEIGHT = 20;
+    private static final int OPTION_GAP = 10;
 
     private final String inviter;
     private final String token;
@@ -33,8 +34,9 @@ public final class InvitePopupScreen extends Screen {
         panelTop = height - 95;
         acceptY = panelTop + 28;
         declineY = acceptY;
-        acceptX = panelLeft + 15;
-        declineX = panelLeft + PANEL_WIDTH - 15 - OPTION_WIDTH;
+        int pairLeft = panelLeft + (PANEL_WIDTH - (OPTION_WIDTH * 2 + OPTION_GAP)) / 2;
+        acceptX = pairLeft;
+        declineX = pairLeft + OPTION_WIDTH + OPTION_GAP;
     }
 
     private void sendCommand(String command) {
@@ -65,12 +67,12 @@ public final class InvitePopupScreen extends Screen {
         graphics.fill(declineX, declineY, declineX + OPTION_WIDTH, declineY + OPTION_HEIGHT, selected == 1 ? 0xFF233C3A : 0xFF1A2732);
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.renderOutline(panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT, 0xFF34434F);
-        graphics.drawCenteredString(font, fit(inviter + " invited you to a run", PANEL_WIDTH - 16),
+        String countdown = Math.max(0, (ticksRemaining + 19) / 20) + "s";
+        graphics.drawString(font, countdown, panelLeft + PANEL_WIDTH - 8 - font.width(countdown), panelTop + 6, SoulLinkColors.TEXT, false);
+        graphics.drawCenteredString(font, fit(inviter + " invited you to a run", PANEL_WIDTH - 16 - font.width(countdown) * 2),
                 panelLeft + PANEL_WIDTH / 2, panelTop + 6, SoulLinkColors.TEXT);
         drawOption(graphics, "Accept", acceptX, acceptY, selected == 0);
         drawOption(graphics, "Decline", declineX, declineY, selected == 1);
-        graphics.drawCenteredString(font, "expires in " + Math.max(0, ticksRemaining / 20) + "s",
-                panelLeft + PANEL_WIDTH / 2, panelTop + PANEL_HEIGHT - 12, SoulLinkColors.TEXT);
     }
 
     private void drawOption(GuiGraphics graphics, String label, int x, int y, boolean highlighted) {
