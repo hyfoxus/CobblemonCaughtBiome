@@ -1,6 +1,7 @@
 package org.hyfoxus.cobblemoncaughtbiome.soullink;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -46,7 +47,9 @@ class SoulLinkDataTest {
         SoulLinkData data = new SoulLinkData();
         Run solo = data.createSolo(a, "Alex");
         Run shared = data.createShared(a, "Alex", b, "Sam");
-        data.select(a, solo);
+        // Persisted selection (shared) differs from the load-time default (first run in list = solo).
+        data.select(a, shared);
+        assertEquals(shared.id, data.selected.get(a));
 
         SoulLinkData loaded = SoulLinkData.load(data.save(new CompoundTag(), null), null);
 
@@ -60,7 +63,8 @@ class SoulLinkDataTest {
         assertTrue(loaded.run(solo.id).solo());
         assertTrue(!loaded.run(shared.id).solo());
         assertEquals(data.selected, loaded.selected);
-        assertEquals(solo.id, loaded.selected.get(a));
+        assertEquals(shared.id, loaded.selected.get(a));
+        assertNotEquals(solo.id, loaded.selected.get(a));
         assertEquals(shared.id, loaded.selected.get(b));
     }
 
